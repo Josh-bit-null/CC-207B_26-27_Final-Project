@@ -116,9 +116,9 @@ class _LandingScreenState extends State<LandingScreen> {
   void _navigateToDashboard(String role) {
     Navigator.pushReplacement(
       context,
-      role == "Commuter"
+      role == "commuter"
           ? MaterialPageRoute(builder: (_) => CommuterHomeScreen())
-          : role == "Driver"
+          : role == "driver"
           ? MaterialPageRoute(builder: (_) => DriverHomeScreen())
           : MaterialPageRoute(builder: (_) => AdminHomeScreen()),
     );
