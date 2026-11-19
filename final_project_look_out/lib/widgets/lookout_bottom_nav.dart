@@ -22,6 +22,8 @@ class LookOutBottomNav extends StatelessWidget {
     assert(selectedIndex >= 0 && selectedIndex < destinations.length);
 
     return NavigationBar(
+      backgroundColor: Theme.of(context).colorScheme.surface,
+      indicatorColor: Theme.of(context).colorScheme.primaryContainer,
       destinations: destinations,
       selectedIndex: selectedIndex,
       onDestinationSelected: onDestinationSelected ?? (_) {},

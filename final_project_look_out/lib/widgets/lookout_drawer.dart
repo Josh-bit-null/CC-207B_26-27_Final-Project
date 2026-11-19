@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 
 class LookOutDrawer extends StatelessWidget {
-
   final Widget header;
   final List<Widget> items;
 
@@ -13,12 +12,19 @@ class LookOutDrawer extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
     return Drawer(
-      child: ListView(
-        children: [
-          header,
-          ...items,
-        ],
+      backgroundColor: theme.colorScheme.surface,
+      child: SafeArea(
+        child: ListView(
+          padding: EdgeInsets.zero,
+          children: [
+            header,
+            const SizedBox(height: 12),
+            ...items,
+          ],
+        ),
       ),
     );
   }

@@ -6,32 +6,35 @@ import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 
+import '../../app/themes/app_colors.dart';
+
 class CommuterHomeScreen extends StatefulWidget {
   const CommuterHomeScreen({super.key});
 
   @override
-  State<CommuterHomeScreen> createState() => _CommuterHomeScreenState();
+  State<CommuterHomeScreen> createState() =>
+      _CommuterHomeScreenState();
 }
 
-class _CommuterHomeScreenState extends State<CommuterHomeScreen> {
+class _CommuterHomeScreenState
+    extends State<CommuterHomeScreen> {
+  final MapController _mapController = MapController();
 
-  @override
-  void initState() {
-    super.initState();
-  }
-final MapController _mapController = MapController();
+  // Iloilo City Proper coordinates
+  static const LatLng _iloiloCenter = LatLng(
+    10.6969,
+    122.5644,
+  );
 
-  // Iloilo City Proper coordinates, I just got this from internet
-  static const LatLng _iloiloCenter = LatLng(10.6969, 122.5644);
-
-  // Sample LPTRP route coordinates (like the Jaro Plaza to City Proper), this also
+  // Sample LPTRP route coordinates
   final List<LatLng> _sampleRoutePoints = const [
     LatLng(10.7253, 122.5568),
     LatLng(10.7120, 122.5605),
     LatLng(10.6969, 122.5644),
   ];
 
-  // Live PUV coordinates (update this list from my Socket.io stream)
+  // Sample live PUV coordinates
+  // Update this list using the Socket.io stream.
   final List<LatLng> _livePuvLocations = const [
     LatLng(10.7120, 122.5605),
   ];
@@ -44,71 +47,147 @@ final MapController _mapController = MapController();
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
     return Scaffold(
-      //You can add here at the top jessa, the app bar and drawer and bottom nav
+      // App Bar
       appBar: const LookOutAppBar(
-        title: 'Commuter Dashboard', //replace with the actual title.
+        title: 'Commuter Dashboard',
       ),
 
+      // Drawer
       drawer: const LookOutDrawer(
         header: SizedBox.shrink(),
         items: [],
       ),
 
+      // Bottom Navigation
       bottomNavigationBar: const LookOutBottomNav(),
 
-      body: FlutterMap(
-        mapController: _mapController,
-        options: const MapOptions(
-          initialCenter: _iloiloCenter,
-          initialZoom: 14.0,
-          minZoom: 11.0,
-          maxZoom: 18.0,
-        ),
+      // Dashboard Body
+      body: Stack(
         children: [
-          // 1. Base map tiles (OpenStreetMap)
-          TileLayer(
-            urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-            userAgentPackageName: 'com.undeciders.lookout',
-          ),
+          // Interactive Map
+          FlutterMap(
+            mapController: _mapController,
+            options: const MapOptions(
+              initialCenter: _iloiloCenter,
+              initialZoom: 14.0,
+              minZoom: 11.0,
+              maxZoom: 18.0,
+            ),
+            children: [
+              // 1. Base Map Tiles
+              TileLayer(
+                urlTemplate:
+                    'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                userAgentPackageName:
+                    'com.undeciders.lookout',
+              ),
 
-          // 2. LPTRP Route Polyline
-          PolylineLayer(
-            polylines: [
-              Polyline(
-                points: _sampleRoutePoints,
-                strokeWidth: 4.0,
-                color: Colors.blue,
+              // 2. LPTRP Route Polyline
+              PolylineLayer(
+                polylines: [
+                  Polyline(
+                    points: _sampleRoutePoints,
+                    strokeWidth: 4.0,
+                    color: AppColor.primaryBlue,
+                  ),
+                ],
+              ),
+
+              // 3. Live PUV Markers
+              MarkerLayer(
+                markers: _livePuvLocations.map((coords) {
+                  return Marker(
+                    point: coords,
+                    width: 40,
+                    height: 40,
+                    child: const Icon(
+                      Icons.directions_bus,
+                      color: AppColor.successGreen,
+                      size: 32,
+                    ),
+                  );
+                }).toList(),
+              ),
+
+              // 4. OpenStreetMap Attribution
+              const RichAttributionWidget(
+                attributions: [
+                  TextSourceAttribution(
+                    'OpenStreetMap contributors',
+                  ),
+                ],
               ),
             ],
           ),
 
-          // 3. Live E-Bus / Jeepney Markers
-          MarkerLayer(
-            markers: _livePuvLocations.map((coords) {
-              return Marker(
-                point: coords,
-                width: 40,
-                height: 40,
-                child: const Icon(
-                  Icons.directions_bus,
-                  color: Colors.red,
-                  size: 32,
+          // Dashboard Information Card
+          SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Card(
+                elevation: 3,
+                color: theme.colorScheme.surface,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
                 ),
-              );
-            }).toList(),
-          ),
+                child: Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Row(
+                    children: [
+                      // Location Icon
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: theme.colorScheme.primaryContainer,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Icon(
+                          Icons.location_on,
+                          color: theme.colorScheme.onPrimaryContainer,
+                        ),
+                      ),
 
-          // 4. Required OSM attribution
-          const RichAttributionWidget(
-            attributions: [
-              TextSourceAttribution('OpenStreetMap contributors'),
-            ],
+                      const SizedBox(width: 12),
+
+                      // Information Text
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment:
+                              CrossAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              'Explore Iloilo City',
+                              style: theme.textTheme.titleMedium
+                                  ?.copyWith(
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              'View routes and nearby public vehicles.',
+                              style: theme.textTheme.bodySmall,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
           ),
         ],
       ),
+
+      // Floating Location Button
       floatingActionButton: FloatingButton(
-        onPressed: () => _mapController.move(_iloiloCenter, 15.0),
+        onPressed: () {
+          _mapController.move(_iloiloCenter, 15.0);
+        },
         icon: Icons.my_location,
       ),
     );

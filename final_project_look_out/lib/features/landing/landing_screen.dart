@@ -1,9 +1,9 @@
+import 'dart:ui';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
-import 'dart:ui';
-
-//pages
+// Pages
 import '../home/admin_home_screen.dart';
 import '../home/commuter_home_screen.dart';
 import '../home/driver_home_screen.dart';
@@ -33,14 +33,21 @@ class _LandingScreenState extends State<LandingScreen> {
   String _signupRole = 'commuter';
   bool _obscurePassword = true;
 
-  // Temporary hardcoded admin credentials (remove before final git push)
+  // Temporary hardcoded admin credentials.
+  // Remove before final git push and replace with secure authentication.
   static const String _tempAdminEmail = 'rkashne@gmail.com';
   static const String _tempAdminPass = '#1212Wawasa';
 
-  // Temporary in-memory registry for local role isolation testing
+  // Temporary in-memory registry for local role isolation testing.
   final Map<String, Map<String, String>> _tempUsers = {
-    'commuter@lookout.ph': {'password': 'password123', 'role': 'commuter'},
-    'driver@lookout.ph': {'password': 'password123', 'role': 'driver'},
+    'commuter@lookout.ph': {
+      'password': 'password123',
+      'role': 'commuter',
+    },
+    'driver@lookout.ph': {
+      'password': 'password123',
+      'role': 'driver',
+    },
   };
 
   @override
@@ -52,9 +59,11 @@ class _LandingScreenState extends State<LandingScreen> {
     _signupNameCtrl.dispose();
     _signupEmailCtrl.dispose();
     _signupPassCtrl.dispose();
+
     super.dispose();
   }
 
+  // LOGIN
   void _handleLogin({
     required GlobalKey<FormState> formKey,
     required String expectedRole,
@@ -66,21 +75,23 @@ class _LandingScreenState extends State<LandingScreen> {
     final email = rawEmail.trim().toLowerCase();
     final password = rawPassword.trim();
 
-    // Admin check: pwede login ang admin sa commuter and driver side login boxes
+    // Temporary admin check.
     if (email == _tempAdminEmail && password == _tempAdminPass) {
       _navigateToDashboard('admin');
       return;
     }
 
-    // Standard account lookup
+    // Standard account lookup.
     final account = _tempUsers[email];
+
     if (account == null || account['password'] != password) {
       _showMessage('Invalid email or password.');
       return;
     }
 
-    // Role isolation:commuter d makalogin sa driver side, driver indi makalogin sa commuter side
+    // Role isolation.
     final actualRole = account['role']!;
+
     if (actualRole != expectedRole) {
       _showMessage(
         'Access denied. This account is registered as a ${actualRole.toUpperCase()}.',
@@ -91,6 +102,7 @@ class _LandingScreenState extends State<LandingScreen> {
     _navigateToDashboard(actualRole);
   }
 
+  // SIGN UP
   void _handleSignup() {
     if (!_signupFormKey.currentState!.validate()) return;
 
@@ -102,7 +114,10 @@ class _LandingScreenState extends State<LandingScreen> {
       return;
     }
 
-    _tempUsers[email] = {'password': password, 'role': _signupRole};
+    _tempUsers[email] = {
+      'password': password,
+      'role': _signupRole,
+    };
 
     _showMessage(
       'Registered as ${_signupRole.toUpperCase()}! You can now log in.',
@@ -113,32 +128,102 @@ class _LandingScreenState extends State<LandingScreen> {
     _signupPassCtrl.clear();
   }
 
+  // NAVIGATION
   void _navigateToDashboard(String role) {
     Navigator.pushReplacement(
       context,
-      role == "commuter"
-          ? MaterialPageRoute(builder: (_) => CommuterHomeScreen())
-          : role == "driver"
-          ? MaterialPageRoute(builder: (_) => DriverHomeScreen())
-          : MaterialPageRoute(builder: (_) => AdminHomeScreen()),
+      role == 'commuter'
+          ? MaterialPageRoute(
+              builder: (_) => CommuterHomeScreen(),
+            )
+          : role == 'driver'
+              ? MaterialPageRoute(
+                  builder: (_) => DriverHomeScreen(),
+                )
+              : MaterialPageRoute(
+                  builder: (_) => AdminHomeScreen(),
+                ),
     );
   }
 
+  // NOTIFICATION
   void _showMessage(String text) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text)));
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        behavior: SnackBarBehavior.floating,
+        content: Text(text),
+      ),
+    );
+  }
+
+  // REUSABLE INPUT DECORATION
+  InputDecoration _inputDecoration(
+    BuildContext context, {
+    required String label,
+    required IconData icon,
+  }) {
+    final colors = Theme.of(context).colorScheme;
+
+    return InputDecoration(
+      labelText: label,
+      prefixIcon: Icon(icon),
+      filled: true,
+      fillColor: colors.surfaceContainerHighest.withValues(alpha: 0.35),
+      contentPadding: const EdgeInsets.symmetric(
+        horizontal: 16,
+        vertical: 16,
+      ),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide.none,
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide(
+          color: colors.outlineVariant,
+        ),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide(
+          color: colors.primary,
+          width: 1.5,
+        ),
+      ),
+      errorBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide(
+          color: colors.error,
+        ),
+      ),
+      focusedErrorBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide(
+          color: colors.error,
+          width: 1.5,
+        ),
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colors = theme.colorScheme;
+
     return DefaultTabController(
       length: 3,
       child: Scaffold(
         body: Stack(
           children: [
+            // BLURRED BACKGROUND
             Positioned.fill(
               child: ClipRect(
                 child: ImageFiltered(
-                  imageFilter: ImageFilter.blur(sigmaX: 6.0, sigmaY: 6.0),
+                  imageFilter: ImageFilter.blur(
+                    sigmaX: 6.0,
+                    sigmaY: 6.0,
+                  ),
                   child: Image.asset(
                     'assets/images/lookoutBanner.png',
                     fit: BoxFit.cover,
@@ -147,53 +232,158 @@ class _LandingScreenState extends State<LandingScreen> {
                 ),
               ),
             ),
+
+            // BACKGROUND OVERLAY
+            Positioned.fill(
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      colors.primary.withValues(alpha: 0.12),
+                      colors.surface.withValues(alpha: 0.90),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+
+            // MAIN CONTENT
             SafeArea(
               child: SingleChildScrollView(
-                padding: const EdgeInsets.all(24.0),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 24,
+                  vertical: 32,
+                ),
                 child: Center(
                   child: ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 420),
+                    constraints: const BoxConstraints(
+                      maxWidth: 440,
+                    ),
                     child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
+                        // APP LOGO
                         SvgPicture.asset(
                           'assets/images/lookoutLogo.svg',
-                          width: 72,
-                          height: 72,
+                          width: 90,
+                          height: 90,
                         ),
-                        const SizedBox(height: 8),
-                        const Text('LookOut!'),
-                        const Text('Iloilo City Real-Time PUV Tracker'),
+
+                        const SizedBox(height: 12),
+
+                        // APP NAME
+                        Text(
+                          'LookOut!',
+                          style: theme.textTheme.headlineLarge?.copyWith(
+                            fontWeight: FontWeight.bold,
+                            color: colors.primary,
+                          ),
+                        ),
+
+                        const SizedBox(height: 6),
+
+                        Text(
+                          'Iloilo City Real-Time PUV Tracker',
+                          textAlign: TextAlign.center,
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            color: colors.onSurfaceVariant,
+                          ),
+                        ),
+
+                        const SizedBox(height: 28),
+
+                        // AUTHENTICATION CARD
+                        Card(
+                          elevation: 4,
+                          color: colors.surface,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(24),
+                          ),
+                          clipBehavior: Clip.antiAlias,
+                          child: Padding(
+                            padding: const EdgeInsets.all(20),
+                            child: Column(
+                              children: [
+                                Text(
+                                  'Welcome!',
+                                  style: theme.textTheme.headlineSmall?.copyWith(
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+
+                                const SizedBox(height: 6),
+
+                                Text(
+                                  'Log in or create an account to get started.',
+                                  textAlign: TextAlign.center,
+                                  style: theme.textTheme.bodySmall,
+                                ),
+
+                                const SizedBox(height: 20),
+
+                                // TABS
+                                TabBar(
+                                  labelColor: colors.onPrimaryContainer,
+                                  unselectedLabelColor:
+                                      colors.onSurfaceVariant,
+                                  indicatorSize: TabBarIndicatorSize.tab,
+                                  indicator: BoxDecoration(
+                                    color: colors.primaryContainer,
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  dividerColor: Colors.transparent,
+                                  labelStyle: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 13,
+                                  ),
+                                  tabs: const [
+                                    Tab(text: 'Commuter'),
+                                    Tab(text: 'Driver'),
+                                    Tab(text: 'Sign Up'),
+                                  ],
+                                ),
+
+                                const SizedBox(height: 20),
+
+                                // TAB CONTENT
+                                SizedBox(
+                                  height: 390,
+                                  child: TabBarView(
+                                    children: [
+                                      _buildLoginForm(
+                                        formKey: _commuterFormKey,
+                                        roleLabel: 'Commuter',
+                                        expectedRole: 'commuter',
+                                        emailController: _commuterEmailCtrl,
+                                        passwordController: _commuterPassCtrl,
+                                      ),
+
+                                      _buildLoginForm(
+                                        formKey: _driverFormKey,
+                                        roleLabel: 'Driver',
+                                        expectedRole: 'driver',
+                                        emailController: _driverEmailCtrl,
+                                        passwordController: _driverPassCtrl,
+                                      ),
+
+                                      _buildSignupForm(),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+
                         const SizedBox(height: 24),
-                        const TabBar(
-                          tabs: [
-                            Tab(text: 'Commuter'),
-                            Tab(text: 'Driver'),
-                            Tab(text: 'Sign Up'),
-                          ],
-                        ),
-                        const SizedBox(height: 20),
-                        SizedBox(
-                          height: 360,
-                          child: TabBarView(
-                            children: [
-                              _buildLoginForm(
-                                formKey: _commuterFormKey,
-                                roleLabel: 'Commuter',
-                                expectedRole: 'commuter',
-                                emailController: _commuterEmailCtrl,
-                                passwordController: _commuterPassCtrl,
-                              ),
-                              _buildLoginForm(
-                                formKey: _driverFormKey,
-                                roleLabel: 'Driver',
-                                expectedRole: 'driver',
-                                emailController: _driverEmailCtrl,
-                                passwordController: _driverPassCtrl,
-                              ),
-                              _buildSignupForm(),
-                            ],
+
+                        // FOOTER
+                        Text(
+                          'Made for Iloilo City',
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: colors.onSurfaceVariant,
+                            fontWeight: FontWeight.w500,
                           ),
                         ),
                       ],
@@ -208,6 +398,7 @@ class _LandingScreenState extends State<LandingScreen> {
     );
   }
 
+  // LOGIN FORM
   Widget _buildLoginForm({
     required GlobalKey<FormState> formKey,
     required String roleLabel,
@@ -215,64 +406,137 @@ class _LandingScreenState extends State<LandingScreen> {
     required TextEditingController emailController,
     required TextEditingController passwordController,
   }) {
+    final theme = Theme.of(context);
+    final colors = theme.colorScheme;
+
     return Form(
       key: formKey,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Text('$roleLabel Login'),
-          const SizedBox(height: 16),
+          Text(
+            '$roleLabel Login',
+            style: theme.textTheme.titleLarge?.copyWith(
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+
+          const SizedBox(height: 6),
+
+          Text(
+            'Enter your account details to continue.',
+            style: theme.textTheme.bodySmall,
+          ),
+
+          const SizedBox(height: 20),
+
           TextFormField(
             controller: emailController,
             keyboardType: TextInputType.emailAddress,
-            decoration: const InputDecoration(
-              labelText: 'Email',
-              prefixIcon: Icon(Icons.email_outlined),
+            decoration: _inputDecoration(
+              context,
+              label: 'Email',
+              icon: Icons.email_outlined,
             ),
-            validator: (val) => (val == null || !val.contains('@'))
-                ? 'Enter a valid email'
-                : null,
+            validator: (val) =>
+                (val == null || !val.contains('@'))
+                    ? 'Enter a valid email'
+                    : null,
           ),
-          const SizedBox(height: 14),
+
+          const SizedBox(height: 16),
+
           TextFormField(
             controller: passwordController,
             obscureText: _obscurePassword,
-            decoration: InputDecoration(
-              labelText: 'Password',
-              prefixIcon: const Icon(Icons.lock_outline),
+            decoration: _inputDecoration(
+              context,
+              label: 'Password',
+              icon: Icons.lock_outline,
+            ).copyWith(
               suffixIcon: IconButton(
+                tooltip: _obscurePassword
+                    ? 'Show password'
+                    : 'Hide password',
                 icon: Icon(
-                  _obscurePassword ? Icons.visibility_off : Icons.visibility,
+                  _obscurePassword
+                      ? Icons.visibility_off_outlined
+                      : Icons.visibility_outlined,
                 ),
-                onPressed: () =>
-                    setState(() => _obscurePassword = !_obscurePassword),
+                onPressed: () {
+                  setState(() {
+                    _obscurePassword = !_obscurePassword;
+                  });
+                },
               ),
             ),
             validator: (val) =>
-                (val == null || val.isEmpty) ? 'Enter your password' : null,
+                (val == null || val.isEmpty)
+                    ? 'Enter your password'
+                    : null,
           ),
-          const SizedBox(height: 20),
-          ElevatedButton(
-            onPressed: () => _handleLogin(
-              formKey: formKey,
-              expectedRole: expectedRole,
-              rawEmail: emailController.text,
-              rawPassword: passwordController.text,
+
+          const SizedBox(height: 24),
+
+          SizedBox(
+            height: 50,
+            child: ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: colors.primary,
+                foregroundColor: colors.onPrimary,
+                elevation: 0,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              onPressed: () => _handleLogin(
+                formKey: formKey,
+                expectedRole: expectedRole,
+                rawEmail: emailController.text,
+                rawPassword: passwordController.text,
+              ),
+              child: Text(
+                'Log In as $roleLabel',
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 15,
+                ),
+              ),
             ),
-            child: Text('Log In as $roleLabel'),
           ),
         ],
       ),
     );
   }
 
+  // SIGNUP FORM
   Widget _buildSignupForm() {
+    final theme = Theme.of(context);
+    final colors = theme.colorScheme;
+
     return Form(
       key: _signupFormKey,
       child: SingleChildScrollView(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            Text(
+              'Create an Account',
+              style: theme.textTheme.titleLarge?.copyWith(
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+
+            const SizedBox(height: 6),
+
+            Text(
+              'Choose your account type and enter your details.',
+              style: theme.textTheme.bodySmall,
+            ),
+
+            const SizedBox(height: 16),
+
+            // ROLE SELECTION
             SegmentedButton<String>(
               segments: const [
                 ButtonSegment(
@@ -288,49 +552,100 @@ class _LandingScreenState extends State<LandingScreen> {
               ],
               selected: {_signupRole},
               onSelectionChanged: (selection) {
-                setState(() => _signupRole = selection.first);
+                setState(() {
+                  _signupRole = selection.first;
+                });
               },
             ),
-            const SizedBox(height: 14),
+
+            const SizedBox(height: 16),
+
+            // FULL NAME
             TextFormField(
               controller: _signupNameCtrl,
-              decoration: const InputDecoration(
-                labelText: 'Full Name',
-                prefixIcon: Icon(Icons.badge_outlined),
+              decoration: _inputDecoration(
+                context,
+                label: 'Full Name',
+                icon: Icons.badge_outlined,
               ),
-              validator: (val) => (val == null || val.trim().isEmpty)
-                  ? 'Enter your name'
-                  : null,
+              validator: (val) =>
+                  (val == null || val.trim().isEmpty)
+                      ? 'Enter your name'
+                      : null,
             ),
+
             const SizedBox(height: 12),
+
+            // EMAIL
             TextFormField(
               controller: _signupEmailCtrl,
               keyboardType: TextInputType.emailAddress,
-              decoration: const InputDecoration(
-                labelText: 'Email',
-                prefixIcon: Icon(Icons.email_outlined),
+              decoration: _inputDecoration(
+                context,
+                label: 'Email',
+                icon: Icons.email_outlined,
               ),
-              validator: (val) => (val == null || !val.contains('@'))
-                  ? 'Enter a valid email'
-                  : null,
+              validator: (val) =>
+                  (val == null || !val.contains('@'))
+                      ? 'Enter a valid email'
+                      : null,
             ),
+
             const SizedBox(height: 12),
+
+            // PASSWORD
             TextFormField(
               controller: _signupPassCtrl,
               obscureText: _obscurePassword,
-              decoration: const InputDecoration(
-                labelText: 'Password (min 6 chars)',
-                prefixIcon: Icon(Icons.lock_outline),
+              decoration: _inputDecoration(
+                context,
+                label: 'Password (min 6 chars)',
+                icon: Icons.lock_outline,
+              ).copyWith(
+                suffixIcon: IconButton(
+                  tooltip: _obscurePassword
+                      ? 'Show password'
+                      : 'Hide password',
+                  icon: Icon(
+                    _obscurePassword
+                        ? Icons.visibility_off_outlined
+                        : Icons.visibility_outlined,
+                  ),
+                  onPressed: () {
+                    setState(() {
+                      _obscurePassword = !_obscurePassword;
+                    });
+                  },
+                ),
               ),
-              validator: (val) => (val == null || val.length < 6)
-                  ? 'Minimum 6 characters'
-                  : null,
+              validator: (val) =>
+                  (val == null || val.length < 6)
+                      ? 'Minimum 6 characters'
+                      : null,
             ),
-            const SizedBox(height: 16),
-            ElevatedButton(
-              onPressed: _handleSignup,
-              child: Text(
-                'Create ${_signupRole == 'commuter' ? 'Commuter' : 'Driver'} Account',
+
+            const SizedBox(height: 20),
+
+            // CREATE ACCOUNT BUTTON
+            SizedBox(
+              height: 50,
+              child: ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: colors.primary,
+                  foregroundColor: colors.onPrimary,
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                onPressed: _handleSignup,
+                child: Text(
+                  'Create ${_signupRole == 'commuter' ? 'Commuter' : 'Driver'} Account',
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 14,
+                  ),
+                ),
               ),
             ),
           ],

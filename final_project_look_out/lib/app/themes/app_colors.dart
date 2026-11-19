@@ -29,4 +29,10 @@ class AppColor {
   static const Color dividerLight = Color(0xFFEEEEEE);
   static const Color dividerDark = Color(0xFF333333);
   static const Color disabled = Color(0xFF9E9E9E);
+
+  // Navigation / Interaction Colors
+  static const Color selectedLight = Color(0xFF1E88E5);
+  static const Color selectedDark = Color(0xFF90CAF9);
+  static const Color unselectedLight = Color(0xFF6C757D);
+  static const Color unselectedDark = Color(0xFFB0B0B0);
 }

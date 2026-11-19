@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 
-//pages
+// Theme configuration
+import './app/themes/app_theme.dart';
+
+// Pages
 import './features/splash/splash_screen.dart';
 
 void main() {
@@ -10,16 +13,13 @@ void main() {
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
-  // This widget is the root of your application.
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Flutter Demo',
-      theme: ThemeData(
-
-        //this is where you can also add teh theme Lianne, and remove this colorScheme, change it to yours
-        colorScheme: .fromSeed(seedColor: Colors.deepPurple),
-      ),
+      title: 'LookOut!',
+      theme: AppTheme.lightTheme,
+      darkTheme: AppTheme.darkTheme,
+      themeMode: ThemeMode.system,
       home: const SplashScreen(),
     );
   }

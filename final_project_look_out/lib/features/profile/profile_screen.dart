@@ -12,15 +12,18 @@ class ProfileScreen extends StatelessWidget {
   });
 
   final String name, email, role;
+
   String get _displayName => name.trim().isNotEmpty
       ? name.trim()
       : email.contains('@')
-      ? email.split('@').first
-      : 'LookOut! user';
+          ? email.split('@').first
+          : 'LookOut! user';
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final colors = theme.colorScheme;
+
     final initials = _displayName
         .split(RegExp(r'\s+'))
         .where((word) => word.isNotEmpty)
@@ -28,6 +31,11 @@ class ProfileScreen extends StatelessWidget {
         .take(2)
         .join()
         .toUpperCase();
+
+    final displayRole = role.trim().isEmpty
+        ? 'Not specified'
+        : role.trim();
+
     return Scaffold(
       appBar: LookOutAppBar(
         leading: IconButton(
@@ -48,45 +56,147 @@ class ProfileScreen extends StatelessWidget {
       body: ListView(
         padding: const EdgeInsets.all(20),
         children: [
+          // Profile header
           Card(
+            elevation: 2,
+            color: colors.surface,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20),
+            ),
             child: Padding(
-              padding: const EdgeInsets.all(24),
+              padding: const EdgeInsets.symmetric(
+                horizontal: 20,
+                vertical: 28,
+              ),
               child: Column(
                 children: [
                   CircleAvatar(
-                    radius: 38,
-                    backgroundColor: theme.colorScheme.primaryContainer,
-                    foregroundColor: theme.colorScheme.onPrimaryContainer,
-                    child: Text(initials.isEmpty ? 'U' : initials),
+                    radius: 42,
+                    backgroundColor: colors.primaryContainer,
+                    foregroundColor: colors.onPrimaryContainer,
+                    child: Text(
+                      initials.isEmpty ? 'U' : initials,
+                      style: theme.textTheme.headlineSmall?.copyWith(
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
                   ),
-                  const SizedBox(height: 14),
-                  Text(_displayName, style: theme.textTheme.titleLarge),
-                  Text(role.toUpperCase()),
+                  const SizedBox(height: 16),
+
+                  Text(
+                    _displayName,
+                    textAlign: TextAlign.center,
+                    style: theme.textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+
+                  const SizedBox(height: 10),
+
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 6,
+                    ),
+                    decoration: BoxDecoration(
+                      color: colors.primaryContainer,
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Text(
+                      displayRole.toUpperCase(),
+                      style: theme.textTheme.labelMedium?.copyWith(
+                        color: colors.onPrimaryContainer,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: 0.6,
+                      ),
+                    ),
+                  ),
                 ],
               ),
             ),
           ),
-          const Padding(
-            padding: EdgeInsets.symmetric(vertical: 12),
-            child: Text('Account details'),
+
+          const SizedBox(height: 28),
+
+          // Account details heading
+          Text(
+            'Account Details',
+            style: theme.textTheme.titleMedium?.copyWith(
+              fontWeight: FontWeight.bold,
+            ),
           ),
-          _detail(context, Icons.person_outline, 'Name', _displayName),
-          _detail(context, Icons.email_outlined, 'Email', email),
+
+          const SizedBox(height: 12),
+
+          _detail(
+            context,
+            Icons.person_outline,
+            'Full Name',
+            _displayName,
+          ),
+
+          _detail(
+            context,
+            Icons.email_outlined,
+            'Email Address',
+            email,
+          ),
+
           _detail(
             context,
             Icons.badge_outlined,
-            'Account type',
-            role.isEmpty ? 'Not specified' : role,
+            'Account Type',
+            displayRole,
           ),
-          const Card(
-            child: ListTile(
-              leading: Icon(Icons.verified_user_outlined),
-              title: Text('Your LookOut! account'),
-              subtitle: Text(
-                'Your profile information is shown for this session.',
+
+          const SizedBox(height: 16),
+
+          // Information card
+          Card(
+            elevation: 0,
+            color: colors.secondaryContainer.withValues(alpha: 0.55),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(
+                    Icons.verified_user_outlined,
+                    color: colors.onSecondaryContainer,
+                    size: 26,
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Your LookOut! Account',
+                          style: theme.textTheme.titleSmall?.copyWith(
+                            fontWeight: FontWeight.bold,
+                            color: colors.onSecondaryContainer,
+                          ),
+                        ),
+                        const SizedBox(height: 5),
+                        Text(
+                          'Your profile information is displayed '
+                          'for this session.',
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: colors.onSecondaryContainer,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ),
             ),
           ),
+
+          const SizedBox(height: 20),
         ],
       ),
     );
@@ -97,11 +207,53 @@ class ProfileScreen extends StatelessWidget {
     IconData icon,
     String label,
     String value,
-  ) => Card(
-    child: ListTile(
-      leading: Icon(icon, color: Theme.of(context).colorScheme.primary),
-      title: Text(label),
-      subtitle: Text(value.isEmpty ? 'Not provided' : value),
-    ),
-  );
+  ) {
+    final theme = Theme.of(context);
+    final colors = theme.colorScheme;
+
+    return Card(
+      elevation: 0,
+      margin: const EdgeInsets.only(bottom: 10),
+      color: colors.surface,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(14),
+        side: BorderSide(
+          color: colors.outlineVariant.withValues(alpha: 0.6),
+        ),
+      ),
+      child: ListTile(
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 6,
+        ),
+        leading: Container(
+          padding: const EdgeInsets.all(10),
+          decoration: BoxDecoration(
+            color: colors.primaryContainer,
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Icon(
+            icon,
+            color: colors.onPrimaryContainer,
+          ),
+        ),
+        title: Text(
+          label,
+          style: theme.textTheme.bodySmall?.copyWith(
+            color: colors.onSurfaceVariant,
+          ),
+        ),
+        subtitle: Padding(
+          padding: const EdgeInsets.only(top: 4),
+          child: Text(
+            value.isEmpty ? 'Not provided' : value,
+            style: theme.textTheme.bodyMedium?.copyWith(
+              fontWeight: FontWeight.w600,
+              color: colors.onSurface,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }
