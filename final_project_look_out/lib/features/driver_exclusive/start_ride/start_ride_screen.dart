@@ -1,3 +1,6 @@
+import 'package:final_project_look_out/widgets/lookout_app_bar.dart';
+import 'package:final_project_look_out/widgets/lookout_bottom_nav.dart';
+import 'package:final_project_look_out/widgets/lookout_drawer.dart';
 import 'package:flutter/material.dart';
 
 class StartRideScreen extends StatelessWidget {
@@ -6,6 +9,18 @@ class StartRideScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+
+      appBar: const LookOutAppBar(
+        title: 'Driver Dashboard', //replace with actual title.
+      ),
+
+      drawer: const LookOutDrawer(
+        header: SizedBox.shrink(),
+        items: [],
+      ),
+
+      bottomNavigationBar: const LookOutBottomNav(),
+
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [

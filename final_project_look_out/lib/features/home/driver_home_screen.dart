@@ -1,3 +1,6 @@
+import 'package:final_project_look_out/widgets/lookout_app_bar.dart';
+import 'package:final_project_look_out/widgets/lookout_bottom_nav.dart';
+import 'package:final_project_look_out/widgets/lookout_drawer.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
@@ -41,6 +44,17 @@ final MapController _mapController = MapController();
   Widget build(BuildContext context) {
     return Scaffold(
       //You can add here at the top jessa, the app bar and drawer and bottom nav
+      appBar: const LookOutAppBar(
+        title: 'Driver Dashboard', //replace with the actual title.
+      ),
+
+      drawer: const LookOutDrawer(
+        header: SizedBox.shrink(),
+        items: [],
+      ),
+
+      bottomNavigationBar: const LookOutBottomNav(),
+
       body: FlutterMap(
         mapController: _mapController,
         options: const MapOptions(

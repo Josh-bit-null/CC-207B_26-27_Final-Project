@@ -1,3 +1,7 @@
+import 'package:final_project_look_out/widgets/floating_button.dart';
+import 'package:final_project_look_out/widgets/lookout_app_bar.dart';
+import 'package:final_project_look_out/widgets/lookout_bottom_nav.dart';
+import 'package:final_project_look_out/widgets/lookout_drawer.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
@@ -10,6 +14,7 @@ class CommuterHomeScreen extends StatefulWidget {
 }
 
 class _CommuterHomeScreenState extends State<CommuterHomeScreen> {
+
   @override
   void initState() {
     super.initState();
@@ -41,6 +46,17 @@ final MapController _mapController = MapController();
   Widget build(BuildContext context) {
     return Scaffold(
       //You can add here at the top jessa, the app bar and drawer and bottom nav
+      appBar: const LookOutAppBar(
+        title: 'Commuter Dashboard', //replace with the actual title.
+      ),
+
+      drawer: const LookOutDrawer(
+        header: SizedBox.shrink(),
+        items: [],
+      ),
+
+      bottomNavigationBar: const LookOutBottomNav(),
+
       body: FlutterMap(
         mapController: _mapController,
         options: const MapOptions(
@@ -91,9 +107,9 @@ final MapController _mapController = MapController();
           ),
         ],
       ),
-      floatingActionButton: FloatingActionButton(
+      floatingActionButton: FloatingButton(
         onPressed: () => _mapController.move(_iloiloCenter, 15.0),
-        child: const Icon(Icons.my_location),
+        icon: Icons.my_location,
       ),
     );
   }
