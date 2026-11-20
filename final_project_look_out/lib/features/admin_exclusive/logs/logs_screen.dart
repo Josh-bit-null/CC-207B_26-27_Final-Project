@@ -1,5 +1,6 @@
+import 'package:final_project_look_out/features/admin_exclusive/accounts/accounts_screen.dart';
+import 'package:final_project_look_out/features/admin_exclusive/feedbacks_faqs/feedback_faqs.dart';
 import 'package:final_project_look_out/widgets/lookout_app_bar.dart';
-import 'package:final_project_look_out/widgets/lookout_bottom_nav.dart';
 import 'package:final_project_look_out/widgets/lookout_drawer.dart';
 import 'package:flutter/material.dart';
 
@@ -16,12 +17,61 @@ class LogsScreen extends StatelessWidget {
         title: 'Activity Logs',
       ),
 
-      drawer: const LookOutDrawer(
-        header: SizedBox.shrink(),
-        items: [],
-      ),
+      drawer: LookOutDrawer(
+        header: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Image.asset(
+            'assets/images/lookoutBanner.png',
+            height: 60,
+          ),
+        ),
+        items: [
+          ListTile(
+            leading: const Icon(Icons.account_box),
+            title: const Text('Accounts'),
+            onTap: () {
+              Navigator.pop(context);
 
-      bottomNavigationBar: const LookOutBottomNav(),
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const AccountsScreen(),
+                ),
+              );
+            },
+          ),
+
+          ListTile(
+            leading: const Icon(Icons.feedback),
+            title: const Text('Feeback FAQs'),
+            onTap: () {
+              Navigator.pop(context);
+
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const FeedbackFaqsScreen(),
+                ),
+              );
+            },
+          ),
+
+          ListTile(
+            leading: const Icon(Icons.history),
+            title: const Text('Logs'),
+            onTap: () {
+              Navigator.pop(context);
+
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const LogsScreen(),
+                ),
+              );
+            },
+          ),
+        ],
+      ),
 
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

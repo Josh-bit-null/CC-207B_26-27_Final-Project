@@ -1,6 +1,4 @@
 import 'package:final_project_look_out/widgets/lookout_app_bar.dart';
-import 'package:final_project_look_out/widgets/lookout_bottom_nav.dart';
-import 'package:final_project_look_out/widgets/lookout_drawer.dart';
 import 'package:flutter/material.dart';
 
 class AboutScreen extends StatelessWidget {
@@ -47,15 +45,8 @@ class AboutScreen extends StatelessWidget {
           icon: const Icon(Icons.arrow_back),
           onPressed: () => Navigator.of(context).maybePop(),
         ),
-        title: 'About LookOut!',
+        title:'About LookOut!',
       ),
-
-      drawer: const LookOutDrawer(
-        header: SizedBox.shrink(),
-        items: [],
-      ),
-
-      bottomNavigationBar: const LookOutBottomNav(),
 
       body: ListView(
         padding: const EdgeInsets.all(20),
