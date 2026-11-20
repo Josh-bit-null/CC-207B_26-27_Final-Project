@@ -27,9 +27,11 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
 
     return Scaffold(
       // App Bar
-      appBar: const LookOutAppBar(
+      appBar: selectedIndex == 0
+      ? const LookOutAppBar(
         title: 'Admin Dashboard',
-      ),
+      )
+      : null,
 
       // Drawer
       drawer: LookOutDrawer(

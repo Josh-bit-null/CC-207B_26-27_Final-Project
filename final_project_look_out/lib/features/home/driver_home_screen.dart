@@ -59,9 +59,11 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
 
     return Scaffold(
       // App Bar
-      appBar: const LookOutAppBar(
+      appBar: selectedIndex == 0
+      ? const LookOutAppBar(
         title: 'Driver Dashboard',
-      ),
+      )
+      : null,
 
       // Drawer
        drawer: LookOutDrawer(

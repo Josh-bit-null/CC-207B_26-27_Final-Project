@@ -59,9 +59,11 @@ class _CommuterHomeScreenState
 
     return Scaffold(
       // App Bar
-      appBar: const LookOutAppBar(
+      appBar: selectedIndex == 0
+      ? const LookOutAppBar(
         title: 'Commuter Dashboard',
-      ),
+      )
+      : null,
 
       // Drawer
       drawer: LookOutDrawer(
