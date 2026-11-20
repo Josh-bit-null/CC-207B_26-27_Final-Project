@@ -1,5 +1,6 @@
+import 'package:final_project_look_out/features/driver_exclusive/start_ride/start_ride_screen.dart';
+import 'package:final_project_look_out/features/driver_exclusive/vehicles/vehicles_screen.dart';
 import 'package:final_project_look_out/widgets/lookout_app_bar.dart';
-import 'package:final_project_look_out/widgets/lookout_bottom_nav.dart';
 import 'package:final_project_look_out/widgets/lookout_drawer.dart';
 import 'package:flutter/material.dart';
 
@@ -16,12 +17,61 @@ class TripsScreen extends StatelessWidget {
         title: 'My Trips',
       ),
 
-      drawer: const LookOutDrawer(
-        header: SizedBox.shrink(),
-        items: [],
-      ),
+      drawer: LookOutDrawer(
+        header: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Image.asset(
+            'assets/images/lookoutBanner.png',
+            height: 60,
+          ),
+        ),
+        items: [
+          ListTile(
+            leading: const Icon(Icons.play_circle),
+            title: const Text('Start Ride'),
+            onTap: () {
+              Navigator.pop(context);
 
-      bottomNavigationBar: const LookOutBottomNav(),
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const StartRideScreen(),
+                ),
+              );
+            },
+          ),
+
+          ListTile(
+            leading: const Icon(Icons.route),
+            title: const Text('Trips'),
+            onTap: () {
+              Navigator.pop(context);
+
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const TripsScreen(),
+                ),
+              );
+            },
+          ),
+
+          ListTile(
+            leading: const Icon(Icons.directions_bus),
+            title: const Text('Vehicles'),
+            onTap: () {
+              Navigator.pop(context);
+
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const VehiclesScreen(),
+                ),
+              );
+            },
+          ),
+        ],
+      ),
 
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

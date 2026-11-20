@@ -1,5 +1,5 @@
+import 'package:final_project_look_out/features/commuter_exclusive/rides/rides_screen.dart';
 import 'package:final_project_look_out/widgets/lookout_app_bar.dart';
-import 'package:final_project_look_out/widgets/lookout_bottom_nav.dart';
 import 'package:final_project_look_out/widgets/lookout_drawer.dart';
 import 'package:flutter/material.dart';
 
@@ -16,12 +16,46 @@ class SavedScreen extends StatelessWidget {
         title: 'Saved Places',
       ),
 
-      drawer: const LookOutDrawer(
-        header: SizedBox.shrink(),
-        items: [],
-      ),
+      drawer: LookOutDrawer(
+        header: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Image.asset(
+            'assets/images/lookoutBanner.png',
+            height: 60,
+          ),
+        ),
+        items: [
+          ListTile(
+            leading: const Icon(Icons.emoji_transportation),
+            title: const Text('Rides'),
+            onTap: () {
+              Navigator.pop(context);
 
-      bottomNavigationBar: const LookOutBottomNav(),
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const RidesScreen(),
+                ),
+              );
+            },
+          ),
+
+          ListTile(
+            leading: const Icon(Icons.save),
+            title: const Text('Saved'),
+            onTap: () {
+              Navigator.pop(context);
+
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const SavedScreen(),
+                ),
+              );
+            },
+          ),
+        ],
+      ),
 
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

@@ -1,8 +1,15 @@
 import 'package:flutter/material.dart';
 
 class ConfirmationDialog extends StatelessWidget {
+  final String title;
+  final String message;
+  final String confirmText;
+
   const ConfirmationDialog({
     super.key,
+    this.title = 'Confirm Action',
+    this.message = 'Are you sure?',
+    this.confirmText = 'Confirm',
   });
 
   @override
@@ -15,14 +22,14 @@ class ConfirmationDialog extends StatelessWidget {
         borderRadius: BorderRadius.circular(16),
       ),
       title: Text(
-        'Confirm Action',
+        title,
         style: theme.textTheme.titleLarge?.copyWith(
           fontWeight: FontWeight.bold,
           color: theme.colorScheme.onSurface,
         ),
       ),
       content: Text(
-        'Are you sure?',
+        message,
         style: theme.textTheme.bodyMedium?.copyWith(
           color: theme.colorScheme.onSurfaceVariant,
         ),
@@ -38,7 +45,7 @@ class ConfirmationDialog extends StatelessWidget {
           onPressed: () {
             Navigator.pop(context, true);
           },
-          child: const Text('Confirm'),
+          child: Text(confirmText),
         ),
       ],
     );
