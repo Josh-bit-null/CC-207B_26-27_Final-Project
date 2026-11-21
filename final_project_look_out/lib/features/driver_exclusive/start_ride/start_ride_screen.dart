@@ -13,17 +13,12 @@ class StartRideScreen extends StatelessWidget {
     final colors = theme.colorScheme;
 
     return Scaffold(
-      appBar: const LookOutAppBar(
-        title: 'Start a Ride',
-      ),
+      appBar: const LookOutAppBar(title: 'Start a Ride'),
 
       drawer: LookOutDrawer(
         header: Padding(
           padding: const EdgeInsets.all(16),
-          child: Image.asset(
-            'assets/images/lookoutBanner.png',
-            height: 60,
-          ),
+          child: Image.asset('assets/images/lookoutBanner.png', height: 60),
         ),
         items: [
           ListTile(
@@ -49,9 +44,7 @@ class StartRideScreen extends StatelessWidget {
 
               Navigator.push(
                 context,
-                MaterialPageRoute(
-                  builder: (context) => const TripsScreen(),
-                ),
+                MaterialPageRoute(builder: (context) => const TripsScreen()),
               );
             },
           ),
@@ -64,9 +57,7 @@ class StartRideScreen extends StatelessWidget {
 
               Navigator.push(
                 context,
-                MaterialPageRoute(
-                  builder: (context) => const VehiclesScreen(),
-                ),
+                MaterialPageRoute(builder: (context) => const VehiclesScreen()),
               );
             },
           ),
@@ -97,105 +88,47 @@ class StartRideScreen extends StatelessWidget {
                       fontWeight: FontWeight.bold,
                     ),
                   ),
-
                   const SizedBox(height: 8),
-
                   Text(
-                    'Access the ride management section for your driving activities.',
+                    'Prepare the route and vehicle details before starting a trip.',
                     style: theme.textTheme.bodyMedium?.copyWith(
                       color: colors.onSurfaceVariant,
                     ),
                   ),
-
                   const SizedBox(height: 24),
-
                   Card(
-                    elevation: 1,
-                    color: colors.surface,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(18),
-                    ),
                     child: Padding(
-                      padding: const EdgeInsets.all(20),
-                      child: Row(
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.all(14),
-                            decoration: BoxDecoration(
-                              color: colors.primaryContainer,
-                              borderRadius: BorderRadius.circular(14),
-                            ),
-                            child: Icon(
-                              Icons.directions_car_outlined,
-                              size: 30,
-                              color: colors.onPrimaryContainer,
-                            ),
-                          ),
-
-                          const SizedBox(width: 16),
-
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  'Start a New Ride',
-                                  style: theme.textTheme.titleMedium?.copyWith(
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-
-                                const SizedBox(height: 6),
-
-                                Text(
-                                  'Ride details and management options will appear here.',
-                                  style: theme.textTheme.bodySmall?.copyWith(
-                                    color: colors.onSurfaceVariant,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-
-                  const SizedBox(height: 24),
-
-                  Center(
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(
-                        vertical: 40,
-                        horizontal: 16,
-                      ),
+                      padding: const EdgeInsets.all(16),
                       child: Column(
                         children: [
-                          Icon(
-                            Icons.route_outlined,
-                            size: 58,
-                            color: colors.onSurfaceVariant.withValues(
-                              alpha: 0.6,
+                          const TextField(
+                            decoration: InputDecoration(
+                              labelText: 'Route',
+                              hintText: 'Jaro - Iloilo City Proper',
+                              prefixIcon: Icon(Icons.route),
                             ),
                           ),
-
                           const SizedBox(height: 16),
-
-                          Text(
-                            'Ride Details',
-                            style: theme.textTheme.titleMedium?.copyWith(
-                              fontWeight: FontWeight.bold,
+                          const TextField(
+                            decoration: InputDecoration(
+                              labelText: 'Vehicle',
+                              hintText: 'Jeepney · ABC 1234',
+                              prefixIcon: Icon(Icons.directions_bus),
                             ),
                           ),
-
-                          const SizedBox(height: 8),
-
-                          Text(
-                            'Ride management information will be displayed here.',
-                            textAlign: TextAlign.center,
-                            style: theme.textTheme.bodyMedium?.copyWith(
-                              color: colors.onSurfaceVariant,
+                          const SizedBox(height: 16),
+                          const TextField(
+                            decoration: InputDecoration(
+                              labelText: 'Departure Time',
+                              hintText: '8:30 AM',
+                              prefixIcon: Icon(Icons.schedule),
                             ),
+                          ),
+                          const SizedBox(height: 20),
+                          FilledButton.icon(
+                            onPressed: null,
+                            icon: const Icon(Icons.play_arrow),
+                            label: const Text('Start Ride'),
                           ),
                         ],
                       ),
