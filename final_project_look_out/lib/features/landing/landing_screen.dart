@@ -1,7 +1,15 @@
+//updated to connect to firestore - Joshua
+
 import 'dart:ui';
+
+//firebase
+import 'package:firebase_auth/firebase_auth.dart';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+
+//services
+import '../../services/auth_service.dart';
 
 // Pages
 import '../home/admin_home_screen.dart';
@@ -16,6 +24,8 @@ class LandingScreen extends StatefulWidget {
 }
 
 class _LandingScreenState extends State<LandingScreen> {
+  final _authService = AuthService();
+
   final _commuterFormKey = GlobalKey<FormState>();
   final _driverFormKey = GlobalKey<FormState>();
   final _signupFormKey = GlobalKey<FormState>();
@@ -32,23 +42,6 @@ class _LandingScreenState extends State<LandingScreen> {
 
   String _signupRole = 'commuter';
   bool _obscurePassword = true;
-
-  // Temporary hardcoded admin credentials.
-  // Remove before final git push and replace with secure authentication.
-  static const String _tempAdminEmail = 'rkashne@gmail.com';
-  static const String _tempAdminPass = '#1212Wawasa';
-
-  // Temporary in-memory registry for local role isolation testing.
-  final Map<String, Map<String, String>> _tempUsers = {
-    'commuter@lookout.ph': {
-      'password': 'password123',
-      'role': 'commuter',
-    },
-    'driver@lookout.ph': {
-      'password': 'password123',
-      'role': 'driver',
-    },
-  };
 
   @override
   void dispose() {
@@ -69,63 +62,72 @@ class _LandingScreenState extends State<LandingScreen> {
     required String expectedRole,
     required String rawEmail,
     required String rawPassword,
-  }) {
+  }) async {
     if (!formKey.currentState!.validate()) return;
 
     final email = rawEmail.trim().toLowerCase();
     final password = rawPassword.trim();
 
-    // Temporary admin check.
-    if (email == _tempAdminEmail && password == _tempAdminPass) {
-      _navigateToDashboard('admin');
-      return;
-    }
+    try{
 
-    // Standard account lookup.
-    final account = _tempUsers[email];
-
-    if (account == null || account['password'] != password) {
-      _showMessage('Invalid email or password.');
-      return;
-    }
-
-    // Role isolation.
-    final actualRole = account['role']!;
-
-    if (actualRole != expectedRole) {
-      _showMessage(
-        'Access denied. This account is registered as a ${actualRole.toUpperCase()}.',
+      final userData = await _authService.login(
+        email: email,
+        password: password,
+        loginTab: expectedRole
       );
-      return;
-    }
 
-    _navigateToDashboard(actualRole);
+      if(!mounted) return;
+
+      if(userData == null)
+      {
+        await _authService.signOut();
+        _showMessage("User Not FOund");
+        return;
+      }
+
+      final String actualRole = userData['role'] ?? 'commuter';
+
+      if(actualRole != 'admin' && actualRole != expectedRole)
+      {
+        _showMessage("Wrong login tab. This account is registered as${actualRole.toUpperCase()}");
+      }
+
+      _navigateToDashboard(actualRole);
+    } on FirebaseAuthException catch (e) {
+      if (!mounted) return;
+      _showMessage(e.toString());
+    } catch (e) {
+      if (!mounted) return;
+      _showMessage('Login failed. Please try again.');
+    }
   }
 
   // SIGN UP
-  void _handleSignup() {
+  void _handleSignup() async {
     if (!_signupFormKey.currentState!.validate()) return;
 
-    final email = _signupEmailCtrl.text.trim().toLowerCase();
-    final password = _signupPassCtrl.text.trim();
+    try {
+      await _authService.signUp(
+        email: _signupEmailCtrl.text.trim(),
+        password: _signupPassCtrl.text.trim(),
+        fullName: _signupNameCtrl.text.trim(),
+        role: _signupRole,
+      );
 
-    if (email == _tempAdminEmail || _tempUsers.containsKey(email)) {
-      _showMessage('Email is already registered.');
-      return;
+      await _authService.signOut();
+
+      if (!mounted) return;
+      _showMessage(
+        'Registered as ${_signupRole.toUpperCase()}! You can now log in.',
+      );
+
+      _signupNameCtrl.clear();
+      _signupEmailCtrl.clear();
+      _signupPassCtrl.clear();
+    } catch (e) {
+      if (!mounted) return;
+      _showMessage(e.toString());
     }
-
-    _tempUsers[email] = {
-      'password': password,
-      'role': _signupRole,
-    };
-
-    _showMessage(
-      'Registered as ${_signupRole.toUpperCase()}! You can now log in.',
-    );
-
-    _signupNameCtrl.clear();
-    _signupEmailCtrl.clear();
-    _signupPassCtrl.clear();
   }
 
   // NAVIGATION
@@ -133,26 +135,17 @@ class _LandingScreenState extends State<LandingScreen> {
     Navigator.pushReplacement(
       context,
       role == 'commuter'
-          ? MaterialPageRoute(
-              builder: (_) => CommuterHomeScreen(),
-            )
+          ? MaterialPageRoute(builder: (_) => CommuterHomeScreen())
           : role == 'driver'
-              ? MaterialPageRoute(
-                  builder: (_) => DriverHomeScreen(),
-                )
-              : MaterialPageRoute(
-                  builder: (_) => AdminHomeScreen(),
-                ),
+          ? MaterialPageRoute(builder: (_) => DriverHomeScreen())
+          : MaterialPageRoute(builder: (_) => AdminHomeScreen()),
     );
   }
 
   // NOTIFICATION
   void _showMessage(String text) {
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        behavior: SnackBarBehavior.floating,
-        content: Text(text),
-      ),
+      SnackBar(behavior: SnackBarBehavior.floating, content: Text(text)),
     );
   }
 
@@ -169,39 +162,26 @@ class _LandingScreenState extends State<LandingScreen> {
       prefixIcon: Icon(icon),
       filled: true,
       fillColor: colors.surfaceContainerHighest.withValues(alpha: 0.35),
-      contentPadding: const EdgeInsets.symmetric(
-        horizontal: 16,
-        vertical: 16,
-      ),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
         borderSide: BorderSide.none,
       ),
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
-        borderSide: BorderSide(
-          color: colors.outlineVariant,
-        ),
+        borderSide: BorderSide(color: colors.outlineVariant),
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
-        borderSide: BorderSide(
-          color: colors.primary,
-          width: 1.5,
-        ),
+        borderSide: BorderSide(color: colors.primary, width: 1.5),
       ),
       errorBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
-        borderSide: BorderSide(
-          color: colors.error,
-        ),
+        borderSide: BorderSide(color: colors.error),
       ),
       focusedErrorBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
-        borderSide: BorderSide(
-          color: colors.error,
-          width: 1.5,
-        ),
+        borderSide: BorderSide(color: colors.error, width: 1.5),
       ),
     );
   }
@@ -220,10 +200,7 @@ class _LandingScreenState extends State<LandingScreen> {
             Positioned.fill(
               child: ClipRect(
                 child: ImageFiltered(
-                  imageFilter: ImageFilter.blur(
-                    sigmaX: 6.0,
-                    sigmaY: 6.0,
-                  ),
+                  imageFilter: ImageFilter.blur(sigmaX: 6.0, sigmaY: 6.0),
                   child: Image.asset(
                     'assets/images/lookoutBanner.png',
                     fit: BoxFit.cover,
@@ -258,9 +235,7 @@ class _LandingScreenState extends State<LandingScreen> {
                 ),
                 child: Center(
                   child: ConstrainedBox(
-                    constraints: const BoxConstraints(
-                      maxWidth: 440,
-                    ),
+                    constraints: const BoxConstraints(maxWidth: 440),
                     child: Column(
                       children: [
                         // APP LOGO
@@ -307,9 +282,8 @@ class _LandingScreenState extends State<LandingScreen> {
                               children: [
                                 Text(
                                   'Welcome!',
-                                  style: theme.textTheme.headlineSmall?.copyWith(
-                                    fontWeight: FontWeight.bold,
-                                  ),
+                                  style: theme.textTheme.headlineSmall
+                                      ?.copyWith(fontWeight: FontWeight.bold),
                                 ),
 
                                 const SizedBox(height: 6),
@@ -325,8 +299,7 @@ class _LandingScreenState extends State<LandingScreen> {
                                 // TABS
                                 TabBar(
                                   labelColor: colors.onPrimaryContainer,
-                                  unselectedLabelColor:
-                                      colors.onSurfaceVariant,
+                                  unselectedLabelColor: colors.onSurfaceVariant,
                                   indicatorSize: TabBarIndicatorSize.tab,
                                   indicator: BoxDecoration(
                                     color: colors.primaryContainer,
@@ -438,10 +411,9 @@ class _LandingScreenState extends State<LandingScreen> {
               label: 'Email',
               icon: Icons.email_outlined,
             ),
-            validator: (val) =>
-                (val == null || !val.contains('@'))
-                    ? 'Enter a valid email'
-                    : null,
+            validator: (val) => (val == null || !val.contains('@'))
+                ? 'Enter a valid email'
+                : null,
           ),
 
           const SizedBox(height: 16),
@@ -449,31 +421,30 @@ class _LandingScreenState extends State<LandingScreen> {
           TextFormField(
             controller: passwordController,
             obscureText: _obscurePassword,
-            decoration: _inputDecoration(
-              context,
-              label: 'Password',
-              icon: Icons.lock_outline,
-            ).copyWith(
-              suffixIcon: IconButton(
-                tooltip: _obscurePassword
-                    ? 'Show password'
-                    : 'Hide password',
-                icon: Icon(
-                  _obscurePassword
-                      ? Icons.visibility_off_outlined
-                      : Icons.visibility_outlined,
+            decoration:
+                _inputDecoration(
+                  context,
+                  label: 'Password',
+                  icon: Icons.lock_outline,
+                ).copyWith(
+                  suffixIcon: IconButton(
+                    tooltip: _obscurePassword
+                        ? 'Show password'
+                        : 'Hide password',
+                    icon: Icon(
+                      _obscurePassword
+                          ? Icons.visibility_off_outlined
+                          : Icons.visibility_outlined,
+                    ),
+                    onPressed: () {
+                      setState(() {
+                        _obscurePassword = !_obscurePassword;
+                      });
+                    },
+                  ),
                 ),
-                onPressed: () {
-                  setState(() {
-                    _obscurePassword = !_obscurePassword;
-                  });
-                },
-              ),
-            ),
             validator: (val) =>
-                (val == null || val.isEmpty)
-                    ? 'Enter your password'
-                    : null,
+                (val == null || val.isEmpty) ? 'Enter your password' : null,
           ),
 
           const SizedBox(height: 24),
@@ -568,10 +539,9 @@ class _LandingScreenState extends State<LandingScreen> {
                 label: 'Full Name',
                 icon: Icons.badge_outlined,
               ),
-              validator: (val) =>
-                  (val == null || val.trim().isEmpty)
-                      ? 'Enter your name'
-                      : null,
+              validator: (val) => (val == null || val.trim().isEmpty)
+                  ? 'Enter your name'
+                  : null,
             ),
 
             const SizedBox(height: 12),
@@ -585,10 +555,9 @@ class _LandingScreenState extends State<LandingScreen> {
                 label: 'Email',
                 icon: Icons.email_outlined,
               ),
-              validator: (val) =>
-                  (val == null || !val.contains('@'))
-                      ? 'Enter a valid email'
-                      : null,
+              validator: (val) => (val == null || !val.contains('@'))
+                  ? 'Enter a valid email'
+                  : null,
             ),
 
             const SizedBox(height: 12),
@@ -597,31 +566,31 @@ class _LandingScreenState extends State<LandingScreen> {
             TextFormField(
               controller: _signupPassCtrl,
               obscureText: _obscurePassword,
-              decoration: _inputDecoration(
-                context,
-                label: 'Password (min 6 chars)',
-                icon: Icons.lock_outline,
-              ).copyWith(
-                suffixIcon: IconButton(
-                  tooltip: _obscurePassword
-                      ? 'Show password'
-                      : 'Hide password',
-                  icon: Icon(
-                    _obscurePassword
-                        ? Icons.visibility_off_outlined
-                        : Icons.visibility_outlined,
+              decoration:
+                  _inputDecoration(
+                    context,
+                    label: 'Password (min 6 chars)',
+                    icon: Icons.lock_outline,
+                  ).copyWith(
+                    suffixIcon: IconButton(
+                      tooltip: _obscurePassword
+                          ? 'Show password'
+                          : 'Hide password',
+                      icon: Icon(
+                        _obscurePassword
+                            ? Icons.visibility_off_outlined
+                            : Icons.visibility_outlined,
+                      ),
+                      onPressed: () {
+                        setState(() {
+                          _obscurePassword = !_obscurePassword;
+                        });
+                      },
+                    ),
                   ),
-                  onPressed: () {
-                    setState(() {
-                      _obscurePassword = !_obscurePassword;
-                    });
-                  },
-                ),
-              ),
-              validator: (val) =>
-                  (val == null || val.length < 6)
-                      ? 'Minimum 6 characters'
-                      : null,
+              validator: (val) => (val == null || val.length < 6)
+                  ? 'Minimum 6 characters'
+                  : null,
             ),
 
             const SizedBox(height: 20),

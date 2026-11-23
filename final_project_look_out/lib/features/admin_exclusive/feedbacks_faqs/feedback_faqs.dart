@@ -1,7 +1,12 @@
+//updated to be functional - Joshua
+
+
 import 'package:final_project_look_out/features/admin_exclusive/accounts/accounts_screen.dart';
 import 'package:final_project_look_out/features/admin_exclusive/logs/logs_screen.dart';
+import 'package:final_project_look_out/services/admin_log_service.dart';
 import 'package:final_project_look_out/widgets/lookout_app_bar.dart';
 import 'package:final_project_look_out/widgets/lookout_drawer.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 
 class FeedbackFaqsScreen extends StatelessWidget {
@@ -11,6 +16,9 @@ class FeedbackFaqsScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colors = theme.colorScheme;
+    final entriesStream = FirebaseFirestore.instance
+        .collection('feedback_faqs')
+        .snapshots();
 
     return Scaffold(
       appBar: const LookOutAppBar(title: 'Feedback & FAQs'),
@@ -27,9 +35,7 @@ class FeedbackFaqsScreen extends StatelessWidget {
               Navigator.pop(context);
               Navigator.push(
                 context,
-                MaterialPageRoute(
-                  builder: (context) => const AccountsScreen(),
-                ),
+                MaterialPageRoute(builder: (context) => const AccountsScreen()),
               );
             },
           ),
@@ -91,77 +97,147 @@ class FeedbackFaqsScreen extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 20),
-                  const Wrap(
-                    spacing: 10,
-                    runSpacing: 10,
-                    children: [
-                      _FeedbackMetric(
-                        label: 'Feedback received',
-                        value: '18',
-                        icon: Icons.forum_outlined,
-                      ),
-                      _FeedbackMetric(
-                        label: 'Needs a reply',
-                        value: '4',
-                        icon: Icons.mark_email_unread_outlined,
-                      ),
-                      _FeedbackMetric(
-                        label: 'Average rating',
-                        value: '4.6',
-                        icon: Icons.star_outline,
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 24),
-                  Text(
-                    'Recent feedback',
-                    style: theme.textTheme.titleLarge?.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  for (final feedback in _sampleFeedback)
-                    _FeedbackCard(feedback: feedback),
-                  const SizedBox(height: 20),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          'Frequently asked questions',
-                          style: theme.textTheme.titleLarge?.copyWith(
-                            fontWeight: FontWeight.bold,
+                  StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+                    stream: entriesStream,
+                    builder: (context, snapshot) {
+                      if (snapshot.hasError) {
+                        return Text(
+                          'Unable to load feedback and FAQs: ${snapshot.error}',
+                        );
+                      }
+                      if (!snapshot.hasData) {
+                        return const Center(child: CircularProgressIndicator());
+                      }
+
+                      final entries = snapshot.data!.docs;
+                      final feedback =
+                          entries
+                              .where(
+                                (entry) => entry.data()['type'] == 'feedback',
+                              )
+                              .toList()
+                            ..sort(_compareNewestFirst);
+                      final faqs =
+                          entries
+                              .where((entry) => entry.data()['type'] == 'faq')
+                              .toList()
+                            ..sort((a, b) {
+                              final questionA =
+                                  a.data()['question'] as String? ?? '';
+                              final questionB =
+                                  b.data()['question'] as String? ?? '';
+                              return questionA.compareTo(questionB);
+                            });
+                      final unresolvedCount = feedback
+                          .where(
+                            (entry) => entry.data()['status'] != 'resolved',
+                          )
+                          .length;
+                      final ratings = feedback
+                          .map((entry) => entry.data()['rating'])
+                          .whereType<num>()
+                          .toList();
+                      final averageRating = ratings.isEmpty
+                          ? '—'
+                          : (ratings.reduce((a, b) => a + b) / ratings.length)
+                                .toStringAsFixed(1);
+
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Wrap(
+                            spacing: 10,
+                            runSpacing: 10,
+                            children: [
+                              _FeedbackMetric(
+                                label: 'Feedback received',
+                                value: '${feedback.length}',
+                                icon: Icons.forum_outlined,
+                              ),
+                              _FeedbackMetric(
+                                label: 'Needs a reply',
+                                value: '$unresolvedCount',
+                                icon: Icons.mark_email_unread_outlined,
+                              ),
+                              _FeedbackMetric(
+                                label: 'Average rating',
+                                value: averageRating,
+                                icon: Icons.star_outline,
+                              ),
+                            ],
                           ),
-                        ),
-                      ),
-                      Text(
-                        '${_sampleFaqs.length} articles',
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: colors.onSurfaceVariant,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  Card(
-                    clipBehavior: Clip.antiAlias,
-                    child: Column(
-                      children: [
-                        for (var index = 0;
-                            index < _sampleFaqs.length;
-                            index++) ...[
-                          if (index > 0) const Divider(height: 1),
-                          _FaqTile(faq: _sampleFaqs[index]),
+                          const SizedBox(height: 24),
+                          Text(
+                            'Recent feedback',
+                            style: theme.textTheme.titleLarge?.copyWith(
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          if (feedback.isEmpty)
+                            const Text('No feedback received yet.')
+                          else
+                            for (final entry in feedback)
+                              _FeedbackCard(
+                                feedback: entry,
+                                onResolve: () => _setFeedbackStatus(
+                                  context,
+                                  entry,
+                                  'resolved',
+                                ),
+                              ),
+                          const SizedBox(height: 20),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  'Frequently asked questions',
+                                  style: theme.textTheme.titleLarge?.copyWith(
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                              TextButton.icon(
+                                onPressed: () => _editFaq(context),
+                                icon: const Icon(Icons.add),
+                                label: const Text('Add FAQ'),
+                              ),
+                            ],
+                          ),
+                          Text(
+                            '${faqs.length} articles',
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: colors.onSurfaceVariant,
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          if (faqs.isEmpty)
+                            const Text('No FAQs have been added.')
+                          else
+                            Card(
+                              clipBehavior: Clip.antiAlias,
+                              child: Column(
+                                children: [
+                                  for (
+                                    var index = 0;
+                                    index < faqs.length;
+                                    index++
+                                  ) ...[
+                                    if (index > 0) const Divider(height: 1),
+                                    _FaqTile(
+                                      faq: faqs[index],
+                                      onEdit: () =>
+                                          _editFaq(context, faqs[index]),
+                                      onDelete: () =>
+                                          _deleteFaq(context, faqs[index]),
+                                    ),
+                                  ],
+                                ],
+                              ),
+                            ),
                         ],
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Sample feedback and help articles for the admin '
-                    'dashboard preview.',
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: colors.onSurfaceVariant,
-                    ),
+                      );
+                    },
                   ),
                 ],
               ),
@@ -201,15 +277,13 @@ class _FeedbackMetric extends StatelessWidget {
               const SizedBox(height: 10),
               Text(
                 value,
-                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                  fontWeight: FontWeight.bold,
-                ),
+                style: Theme.of(context).textTheme.headlineSmall
+                    ?.copyWith(fontWeight: FontWeight.bold),
               ),
               Text(
                 label,
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: colors.onSurfaceVariant,
-                ),
+                style: Theme.of(context).textTheme.bodySmall
+                    ?.copyWith(color: colors.onSurfaceVariant),
               ),
             ],
           ),
@@ -220,17 +294,33 @@ class _FeedbackMetric extends StatelessWidget {
 }
 
 class _FeedbackCard extends StatelessWidget {
-  const _FeedbackCard({required this.feedback});
+  const _FeedbackCard({required this.feedback, required this.onResolve});
 
-  final _Feedback feedback;
+  final QueryDocumentSnapshot<Map<String, dynamic>> feedback;
+  final VoidCallback onResolve;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colors = theme.colorScheme;
-    final statusColor = feedback.status == 'Resolved'
-        ? Colors.green
-        : colors.tertiary;
+    final data = feedback.data();
+    final name =
+        data['name'] as String? ?? data['fromName'] as String? ?? 'User';
+    final initials = name
+        .split(RegExp(r'\s+'))
+        .where((part) => part.isNotEmpty)
+        .take(2)
+        .map((part) => part[0].toUpperCase())
+        .join();
+    final status = data['status'] as String? ?? 'open';
+    final statusColor = status == 'resolved' ? Colors.green : colors.tertiary;
+    final timestamp = data['createdAt'];
+    final date = timestamp is Timestamp
+        ? _formatDateTime(timestamp.toDate())
+        : 'Date unavailable';
+    final rating = data['rating'] is num
+        ? (data['rating'] as num).round().clamp(0, 5)
+        : 0;
 
     return Card(
       margin: const EdgeInsets.only(bottom: 10),
@@ -245,7 +335,7 @@ class _FeedbackCard extends StatelessWidget {
                   radius: 19,
                   backgroundColor: colors.secondaryContainer,
                   foregroundColor: colors.onSecondaryContainer,
-                  child: Text(feedback.initials),
+                  child: Text(initials.isEmpty ? '?' : initials),
                 ),
                 const SizedBox(width: 10),
                 Expanded(
@@ -253,13 +343,13 @@ class _FeedbackCard extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        feedback.name,
+                        name,
                         style: theme.textTheme.titleSmall?.copyWith(
                           fontWeight: FontWeight.bold,
                         ),
                       ),
                       Text(
-                        feedback.date,
+                        date,
                         style: theme.textTheme.bodySmall?.copyWith(
                           color: colors.onSurfaceVariant,
                         ),
@@ -268,7 +358,7 @@ class _FeedbackCard extends StatelessWidget {
                   ),
                 ),
                 _FeedbackStatus(
-                  label: feedback.status,
+                  label: _displayStatus(status),
                   color: statusColor,
                 ),
               ],
@@ -278,13 +368,13 @@ class _FeedbackCard extends StatelessWidget {
               children: [
                 for (var star = 1; star <= 5; star++)
                   Icon(
-                    star <= feedback.rating ? Icons.star : Icons.star_border,
+                    star <= rating ? Icons.star : Icons.star_border,
                     size: 18,
                     color: Colors.amber.shade700,
                   ),
                 const SizedBox(width: 8),
                 Text(
-                  feedback.category,
+                  data['category'] as String? ?? 'General',
                   style: theme.textTheme.labelMedium?.copyWith(
                     color: colors.onSurfaceVariant,
                   ),
@@ -292,7 +382,18 @@ class _FeedbackCard extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 8),
-            Text(feedback.message, style: theme.textTheme.bodyMedium),
+            Text(
+              data['message'] as String? ?? '',
+              style: theme.textTheme.bodyMedium,
+            ),
+            if (status != 'resolved')
+              Align(
+                alignment: Alignment.centerRight,
+                child: TextButton(
+                  onPressed: onResolve,
+                  child: const Text('Mark resolved'),
+                ),
+              ),
           ],
         ),
       ),
@@ -316,128 +417,292 @@ class _FeedbackStatus extends StatelessWidget {
       ),
       child: Text(
         label,
-        style: Theme.of(context).textTheme.labelSmall?.copyWith(
-          color: color,
-          fontWeight: FontWeight.w600,
-        ),
+        style: Theme.of(context).textTheme.labelSmall
+            ?.copyWith(color: color, fontWeight: FontWeight.w600),
       ),
     );
   }
 }
 
 class _FaqTile extends StatelessWidget {
-  const _FaqTile({required this.faq});
+  const _FaqTile({
+    required this.faq,
+    required this.onEdit,
+    required this.onDelete,
+  });
 
-  final _Faq faq;
+  final QueryDocumentSnapshot<Map<String, dynamic>> faq;
+  final VoidCallback onEdit;
+  final VoidCallback onDelete;
 
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
+    final data = faq.data();
+    final timestamp = data['updatedAt'];
+    final updated = timestamp is Timestamp
+        ? _formatDate(timestamp.toDate())
+        : 'Not available';
 
     return ExpansionTile(
       leading: Icon(Icons.help_outline, color: colors.primary),
-      title: Text(faq.question),
+      title: Text(data['question'] as String? ?? ''),
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          IconButton(
+            tooltip: 'Edit FAQ',
+            onPressed: onEdit,
+            icon: const Icon(Icons.edit_outlined),
+          ),
+          IconButton(
+            tooltip: 'Delete FAQ',
+            onPressed: onDelete,
+            icon: const Icon(Icons.delete_outline),
+          ),
+          const Icon(Icons.expand_more),
+        ],
+      ),
       childrenPadding: const EdgeInsets.fromLTRB(56, 0, 20, 16),
       expandedCrossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          faq.answer,
+          data['answer'] as String? ?? '',
           style: Theme.of(context).textTheme.bodyMedium,
         ),
         const SizedBox(height: 8),
         Text(
-          'Updated ${faq.updated}',
-          style: Theme.of(context).textTheme.labelSmall?.copyWith(
-            color: colors.onSurfaceVariant,
-          ),
+          'Updated $updated',
+          style: Theme.of(context).textTheme.labelSmall
+              ?.copyWith(color: colors.onSurfaceVariant),
         ),
       ],
     );
   }
 }
 
-class _Feedback {
-  const _Feedback({
-    required this.name,
-    required this.initials,
-    required this.date,
-    required this.rating,
-    required this.category,
-    required this.status,
-    required this.message,
-  });
-
-  final String name;
-  final String initials;
-  final String date;
-  final int rating;
-  final String category;
-  final String status;
-  final String message;
+int _compareNewestFirst(
+  QueryDocumentSnapshot<Map<String, dynamic>> a,
+  QueryDocumentSnapshot<Map<String, dynamic>> b,
+) {
+  final dateA = a.data()['createdAt'];
+  final dateB = b.data()['createdAt'];
+  final valueA = dateA is Timestamp ? dateA.millisecondsSinceEpoch : 0;
+  final valueB = dateB is Timestamp ? dateB.millisecondsSinceEpoch : 0;
+  return valueB.compareTo(valueA);
 }
 
-class _Faq {
-  const _Faq({
-    required this.question,
-    required this.answer,
-    required this.updated,
-  });
+String _displayStatus(String status) => status.isEmpty
+    ? status
+    : '${status[0].toUpperCase()}${status.substring(1)}';
 
-  final String question;
-  final String answer;
-  final String updated;
+String _formatDate(DateTime date) =>
+    '${_month(date.month)} ${date.day}, ${date.year}';
+
+String _formatDateTime(DateTime date) {
+  final hour = date.hour % 12 == 0 ? 12 : date.hour % 12;
+  final minute = date.minute.toString().padLeft(2, '0');
+  final period = date.hour < 12 ? 'AM' : 'PM';
+  return '${_formatDate(date)} · $hour:$minute $period';
 }
 
-const _sampleFeedback = [
-  _Feedback(
-    name: 'Gojo Zenin',
-    initials: 'GZ',
-    date: 'Today · 9:42 AM',
-    rating: 5,
-    category: 'Live tracking',
-    status: 'Resolved',
-    message:
-        'The live map made it much easier to see when my ride was arriving.',
-  ),
-  _Feedback(
-    name: 'Zaraki Kenpachi',
-    initials: 'ZK',
-    date: 'Today · 8:16 AM',
-    rating: 3,
-    category: 'Route information',
-    status: 'Open',
-    message:
-        'Text Case1, Text Case2, Text Case3.',
-  ),
-  _Feedback(
-    name: 'Marco Lim',
-    initials: 'ML',
-    date: 'Yesterday · 4:28 PM',
-    rating: 5,
-    category: 'App experience',
-    status: 'Resolved',
-    message:
-        'Text Example1, Text Example2, Text Example3. Hello Good Job.',
-  ),
-];
+String _month(int month) => const [
+  'Jan',
+  'Feb',
+  'Mar',
+  'Apr',
+  'May',
+  'Jun',
+  'Jul',
+  'Aug',
+  'Sep',
+  'Oct',
+  'Nov',
+  'Dec',
+][month - 1];
 
-const _sampleFaqs = [
-  _Faq(
-    question: 'How do I find a nearby ride?',
-    answer:
-        'Answer will be provided here.',
-    updated: 'Nov 18, 2026',
-  ),
-  _Faq(
-    question: 'How can I report a driver or trip issue?',
-    answer:
-        'Answer will be provided here.',
-    updated: 'Nov 12, 2026',
-  ),
-  _Faq(
-    question: 'How do drivers update their availability?',
-    answer:
-        'Answer will be provided here.',
-    updated: 'Nov 8, 2026',
-  ),
-];
+Future<void> _editFaq(
+  BuildContext context, [
+  QueryDocumentSnapshot<Map<String, dynamic>>? faq,
+]) async {
+  final questionController = TextEditingController(
+    text: faq?.data()['question'] as String? ?? '',
+  );
+  final answerController = TextEditingController(
+    text: faq?.data()['answer'] as String? ?? '',
+  );
+  final formKey = GlobalKey<FormState>();
+  final values = await showDialog<(String, String)>(
+    context: context,
+    builder: (dialogContext) => AlertDialog(
+      title: Text(faq == null ? 'Add FAQ' : 'Edit FAQ'),
+      content: Form(
+        key: formKey,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextFormField(
+              controller: questionController,
+              decoration: const InputDecoration(labelText: 'Question'),
+              validator: (value) => value == null || value.trim().isEmpty
+                  ? 'Enter a question.'
+                  : null,
+            ),
+            TextFormField(
+              controller: answerController,
+              decoration: const InputDecoration(labelText: 'Answer'),
+              minLines: 2,
+              maxLines: 5,
+              validator: (value) => value == null || value.trim().isEmpty
+                  ? 'Enter an answer.'
+                  : null,
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(dialogContext),
+          child: const Text('Cancel'),
+        ),
+        TextButton(
+          onPressed: () {
+            if (formKey.currentState!.validate()) {
+              Navigator.pop(dialogContext, (
+                questionController.text.trim(),
+                answerController.text.trim(),
+              ));
+            }
+          },
+          child: const Text('Save'),
+        ),
+      ],
+    ),
+  );
+  questionController.dispose();
+  answerController.dispose();
+  if (values == null || !context.mounted) return;
+
+  final db = FirebaseFirestore.instance;
+  final entry = faq?.reference ?? db.collection('feedback_faqs').doc();
+  final batch = db.batch();
+  final now = FieldValue.serverTimestamp();
+  if (faq == null) {
+    batch.set(entry, {
+      'type': 'faq',
+      'question': values.$1,
+      'answer': values.$2,
+      'createdAt': now,
+      'updatedAt': now,
+    });
+  } else {
+    batch.update(entry, {
+      'question': values.$1,
+      'answer': values.$2,
+      'updatedAt': now,
+    });
+  }
+  batch.set(
+    db.collection('logs').doc(),
+    adminLogData(
+      title: faq == null ? 'FAQ created' : 'FAQ updated',
+      description: values.$1,
+      type: 'Content',
+    ),
+  );
+
+  try {
+    await batch.commit();
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(faq == null ? 'FAQ added.' : 'FAQ updated.')),
+      );
+    }
+  } on FirebaseException catch (error) {
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Unable to save FAQ: ${error.message}')),
+      );
+    }
+  }
+}
+
+Future<void> _deleteFaq(
+  BuildContext context,
+  QueryDocumentSnapshot<Map<String, dynamic>> faq,
+) async {
+  final confirmed = await showDialog<bool>(
+    context: context,
+    builder: (dialogContext) => AlertDialog(
+      title: const Text('Delete FAQ?'),
+      content: Text('Delete "${faq.data()['question'] ?? ''}"?'),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(dialogContext, false),
+          child: const Text('Cancel'),
+        ),
+        TextButton(
+          onPressed: () => Navigator.pop(dialogContext, true),
+          child: const Text('Delete'),
+        ),
+      ],
+    ),
+  );
+  if (confirmed != true || !context.mounted) return;
+
+  final db = FirebaseFirestore.instance;
+  final batch = db.batch();
+  batch.delete(faq.reference);
+  batch.set(
+    db.collection('logs').doc(),
+    adminLogData(
+      title: 'FAQ deleted',
+      description: faq.data()['question'] as String? ?? '',
+      type: 'Content',
+    ),
+  );
+  try {
+    await batch.commit();
+  } on FirebaseException catch (error) {
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Unable to delete FAQ: ${error.message}')),
+      );
+    }
+  }
+}
+
+Future<void> _setFeedbackStatus(
+  BuildContext context,
+  QueryDocumentSnapshot<Map<String, dynamic>> feedback,
+  String status,
+) async {
+  final db = FirebaseFirestore.instance;
+  final batch = db.batch();
+  batch.update(feedback.reference, {
+    'status': status,
+    'updatedAt': FieldValue.serverTimestamp(),
+  });
+  batch.set(
+    db.collection('logs').doc(),
+    adminLogData(
+      title: 'Feedback marked as resolved',
+      description: feedback.data()['message'] as String? ?? feedback.id,
+      type: 'Feedback',
+    ),
+  );
+  try {
+    await batch.commit();
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Feedback marked as resolved.')),
+      );
+    }
+  } on FirebaseException catch (error) {
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Unable to update feedback: ${error.message}')),
+      );
+    }
+  }
+}

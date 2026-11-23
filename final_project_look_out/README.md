@@ -15,3 +15,13 @@ A few resources to get you started if this is your first Flutter project:
 For help getting started with Flutter development, view the
 [online documentation](https://docs.flutter.dev/), which offers tutorials,
 samples, guidance on mobile development, and a full API reference.
+
+## Admin account management
+
+Creating an account uses the `createUserAccount` callable function in
+[the Firebase Functions package](../functions). Install its dependencies from
+the repository root with `npm ci --prefix functions`, then deploy it with
+`firebase deploy --only functions:createUserAccount`.
+
+Deleting an account removes its Firestore `users` document only. Its Firebase
+Authentication account may remain.

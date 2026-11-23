@@ -1,5 +1,8 @@
+//updated to be functional - Joshua
+
 import 'package:final_project_look_out/features/admin_exclusive/accounts/accounts_screen.dart';
 import 'package:final_project_look_out/features/admin_exclusive/feedbacks_faqs/feedback_faqs.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:final_project_look_out/widgets/lookout_app_bar.dart';
 import 'package:final_project_look_out/widgets/lookout_drawer.dart';
 import 'package:flutter/material.dart';
@@ -11,6 +14,9 @@ class LogsScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colors = theme.colorScheme;
+    final logsStream = FirebaseFirestore.instance
+        .collection('logs')
+        .snapshots();
 
     return Scaffold(
       appBar: const LookOutAppBar(title: 'Activity Logs'),
@@ -88,62 +94,112 @@ class LogsScreen extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 20),
-                  const Wrap(
-                    spacing: 10,
-                    runSpacing: 10,
-                    children: [
-                      _LogMetric(
-                        label: 'Events today',
-                        value: '126',
-                        icon: Icons.receipt_long_outlined,
-                      ),
-                      _LogMetric(
-                        label: 'Admin actions',
-                        value: '8',
-                        icon: Icons.admin_panel_settings_outlined,
-                      ),
-                      _LogMetric(
-                        label: 'Alerts',
-                        value: '2',
-                        icon: Icons.warning_amber_outlined,
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 24),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          'Recent activity',
-                          style: theme.textTheme.titleLarge?.copyWith(
-                            fontWeight: FontWeight.bold,
+                  StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+                    stream: logsStream,
+                    builder: (context, snapshot) {
+                      if (snapshot.hasError) {
+                        return Text(
+                          'Unable to load activity logs: ${snapshot.error}',
+                        );
+                      }
+                      if (!snapshot.hasData) {
+                        return const Center(child: CircularProgressIndicator());
+                      }
+
+                      final entries = snapshot.data!.docs.toList()
+                        ..sort((a, b) {
+                          final timeA = a.data()['createdAt'];
+                          final timeB = b.data()['createdAt'];
+                          final valueA = timeA is Timestamp
+                              ? timeA.millisecondsSinceEpoch
+                              : 0;
+                          final valueB = timeB is Timestamp
+                              ? timeB.millisecondsSinceEpoch
+                              : 0;
+                          return valueB.compareTo(valueA);
+                        });
+                      final logs = entries
+                          .map(_ActivityLog.fromDocument)
+                          .toList();
+                      final now = DateTime.now();
+                      final todayCount = entries.where((entry) {
+                        final value = entry.data()['createdAt'];
+                        if (value is! Timestamp) return false;
+                        final date = value.toDate().toLocal();
+                        return date.year == now.year &&
+                            date.month == now.month &&
+                            date.day == now.day;
+                      }).length;
+                      final adminActions = entries
+                          .where((entry) => entry.data()['actorUid'] != null)
+                          .length;
+                      final alerts = entries
+                          .where((entry) => entry.data()['type'] == 'Alert')
+                          .length;
+
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Wrap(
+                            spacing: 10,
+                            runSpacing: 10,
+                            children: [
+                              _LogMetric(
+                                label: 'Events today',
+                                value: '$todayCount',
+                                icon: Icons.receipt_long_outlined,
+                              ),
+                              _LogMetric(
+                                label: 'Admin actions',
+                                value: '$adminActions',
+                                icon: Icons.admin_panel_settings_outlined,
+                              ),
+                              _LogMetric(
+                                label: 'Alerts',
+                                value: '$alerts',
+                                icon: Icons.warning_amber_outlined,
+                              ),
+                            ],
                           ),
-                        ),
-                      ),
-                      Text(
-                        'Latest first',
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: colors.onSurfaceVariant,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-                  for (var index = 0; index < _sampleLogs.length; index++) ...[
-                    if (index == 0 ||
-                        _sampleLogs[index].date != _sampleLogs[index - 1].date)
-                      _LogDateHeading(date: _sampleLogs[index].date),
-                    _ActivityLogTile(
-                      log: _sampleLogs[index],
-                      isLast: index == _sampleLogs.length - 1,
-                    ),
-                  ],
-                  const SizedBox(height: 8),
-                  Text(
-                    'Sample activity data for the admin dashboard preview.',
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: colors.onSurfaceVariant,
-                    ),
+                          const SizedBox(height: 24),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  'Recent activity',
+                                  style: theme.textTheme.titleLarge?.copyWith(
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                              Text(
+                                'Latest first',
+                                style: theme.textTheme.bodySmall?.copyWith(
+                                  color: colors.onSurfaceVariant,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 16),
+                          if (logs.isEmpty)
+                            const Text('No activity has been recorded.')
+                          else
+                            for (
+                              var index = 0;
+                              index < logs.length;
+                              index++
+                            ) ...[
+                              if (index == 0 ||
+                                  logs[index].date != logs[index - 1].date)
+                                _LogDateHeading(date: logs[index].date),
+                              _ActivityLogTile(
+                                log: logs[index],
+                                isLast: index == logs.length - 1,
+                              ),
+                            ],
+                        ],
+                      );
+                    },
                   ),
                 ],
               ),
@@ -360,53 +416,43 @@ class _ActivityLog {
   final String actor;
   final String type;
   final IconData icon;
+
+  factory _ActivityLog.fromDocument(
+    QueryDocumentSnapshot<Map<String, dynamic>> document,
+  ) {
+    final data = document.data();
+    final type = data['type'] as String? ?? 'Activity';
+    final timestamp = data['createdAt'];
+    final date = timestamp is Timestamp
+        ? _formatLogDate(timestamp.toDate().toLocal())
+        : 'Date unavailable';
+    final time = timestamp is Timestamp
+        ? _formatLogTime(timestamp.toDate().toLocal())
+        : '';
+    return _ActivityLog(
+      date: date,
+      time: time,
+      title: data['title'] as String? ?? type,
+      description: data['description'] as String? ?? '',
+      actor: data['actor'] as String? ?? 'System',
+      type: type,
+      icon: switch (type) {
+        'Account' => Icons.manage_accounts_outlined,
+        'Feedback' => Icons.feedback_outlined,
+        'Alert' => Icons.warning_amber_outlined,
+        'Content' => Icons.edit_note_outlined,
+        _ => Icons.receipt_long_outlined,
+      },
+    );
+  }
 }
 
-const _sampleLogs = [
-  _ActivityLog(
-    date: 'Today · November 20, 2026',
-    time: '10:24 AM',
-    title: 'Account status updated',
-    description: 'Devin Kurant’s account was approved.',
-    actor: 'Admin · Joshu Pang',
-    type: 'Account',
-    icon: Icons.person_add_alt_1_outlined,
-  ),
-  _ActivityLog(
-    date: 'Today · November 20, 2026',
-    time: '9:51 AM',
-    title: 'Feedback marked as resolved',
-    description: 'A response was recorded for live tracking feedback.',
-    actor: 'Admin · Joshu Pang',
-    type: 'Feedback',
-    icon: Icons.mark_email_read_outlined,
-  ),
-  _ActivityLog(
-    date: 'Today · November 20, 2026',
-    time: '8:37 AM',
-    title: 'New driver registration',
-    description: 'A new driver submitted an account for review.',
-    actor: 'System',
-    type: 'Account',
-    icon: Icons.badge_outlined,
-  ),
-  _ActivityLog(
-    date: 'Yesterday · November 19, 2026',
-    time: '6:12 PM',
-    title: 'Unusual sign-in attempt',
-    description:
-        'Several unsuccessful sign-in attempts were detected for one account.',
-    actor: 'System security',
-    type: 'Alert',
-    icon: Icons.shield_outlined,
-  ),
-  _ActivityLog(
-    date: 'Yesterday · November 19, 2026',
-    time: '3:06 PM',
-    title: 'FAQ article updated',
-    description: '“How do I find a nearby ride?” was edited.',
-    actor: 'Admin · Joshu Pang.',
-    type: 'Content',
-    icon: Icons.edit_note_outlined,
-  ),
-];
+String _formatLogDate(DateTime date) =>
+    '${date.year}-${date.month.toString().padLeft(2, '0')}-'
+    '${date.day.toString().padLeft(2, '0')}';
+
+String _formatLogTime(DateTime date) {
+  final hour = date.hour % 12 == 0 ? 12 : date.hour % 12;
+  final minute = date.minute.toString().padLeft(2, '0');
+  return '$hour:$minute ${date.hour < 12 ? 'AM' : 'PM'}';
+}
