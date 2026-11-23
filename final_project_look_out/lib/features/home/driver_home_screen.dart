@@ -51,6 +51,9 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
     super.dispose();
   }
 
+  final GlobalKey<ScaffoldState> _scaffoldKey =
+    GlobalKey<ScaffoldState>();
+
   int selectedIndex = 0;
 
   @override
@@ -65,7 +68,7 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
       )
       : null,
 
-      // Drawer
+      key: _scaffoldKey,
        drawer: LookOutDrawer(
         header: Padding(
           padding: const EdgeInsets.all(16),
@@ -280,13 +283,28 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
               ),
             ],
           ),
-          const AboutScreen(),
-          const AnalyticsScreen(),
-          const AnnouncementsScreen(),
-          const ProfileScreen(
+          AboutScreen(
+              onMenuPressed: () {
+                _scaffoldKey.currentState?.openDrawer();
+              },
+            ),
+            AnalyticsScreen(
+              onMenuPressed: () {
+                _scaffoldKey.currentState?.openDrawer();
+              },
+            ),
+            AnnouncementsScreen(
+               onMenuPressed: () {
+                _scaffoldKey.currentState?.openDrawer();
+              },
+            ),
+            ProfileScreen(
               name: 'Commuter', 
               email: 'commuter@lookout.ph', 
-              role: 'commmuter'
+              role: 'commmuter',
+              onMenuPressed: () {
+                _scaffoldKey.currentState?.openDrawer();
+              },
             ),
         ],
       ),

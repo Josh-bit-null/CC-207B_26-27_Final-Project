@@ -4,10 +4,7 @@ class PopupNotif {
   final String message;
   final String title;
 
-  const PopupNotif({
-    required this.message,
-    required this.title,
-  });
+  const PopupNotif({required this.message, required this.title});
 
   void show(BuildContext context) {
     final theme = Theme.of(context);
@@ -17,9 +14,7 @@ class PopupNotif {
         behavior: SnackBarBehavior.floating,
         backgroundColor: theme.colorScheme.inverseSurface,
         elevation: 4,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         margin: const EdgeInsets.all(16),
         content: Text(
           '$title: $message',

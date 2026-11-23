@@ -15,6 +15,7 @@ import 'package:latlong2/latlong.dart';
 import '../../app/themes/app_colors.dart';
 
 class CommuterHomeScreen extends StatefulWidget {
+  
   const CommuterHomeScreen({super.key});
 
   @override
@@ -51,6 +52,9 @@ class _CommuterHomeScreenState
     super.dispose();
   }
 
+  final GlobalKey<ScaffoldState> _scaffoldKey =
+    GlobalKey<ScaffoldState>();
+
   int selectedIndex = 0;
 
   @override
@@ -65,7 +69,7 @@ class _CommuterHomeScreenState
       )
       : null,
 
-      // Drawer
+      key: _scaffoldKey,
       drawer: LookOutDrawer(
         header: Padding(
           padding: const EdgeInsets.all(16),
@@ -267,13 +271,28 @@ class _CommuterHomeScreenState
               ],
             ),
 
-            const AboutScreen(),
-            const AnalyticsScreen(),
-            const AnnouncementsScreen(),
-            const ProfileScreen(
+            AboutScreen(
+              onMenuPressed: () {
+                _scaffoldKey.currentState?.openDrawer();
+              },
+            ),
+            AnalyticsScreen(
+              onMenuPressed: () {
+                _scaffoldKey.currentState?.openDrawer();
+              },
+            ),
+            AnnouncementsScreen(
+               onMenuPressed: () {
+                _scaffoldKey.currentState?.openDrawer();
+              },
+            ),
+            ProfileScreen(
               name: 'Commuter', 
               email: 'commuter@lookout.ph', 
-              role: 'commmuter'
+              role: 'commmuter',
+              onMenuPressed: () {
+                _scaffoldKey.currentState?.openDrawer();
+              },
             ),
 
           ],

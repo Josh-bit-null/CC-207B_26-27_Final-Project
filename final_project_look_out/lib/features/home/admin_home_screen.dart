@@ -19,6 +19,9 @@ class AdminHomeScreen extends StatefulWidget {
 
 class _AdminHomeScreenState extends State<AdminHomeScreen> {
 
+  final GlobalKey<ScaffoldState> _scaffoldKey =
+    GlobalKey<ScaffoldState>();
+
   int selectedIndex = 0;
 
   @override
@@ -33,7 +36,7 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
       )
       : null,
 
-      // Drawer
+      key: _scaffoldKey,
       drawer: LookOutDrawer(
         header: Padding(
           padding: const EdgeInsets.all(16),
@@ -283,13 +286,28 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
               ],
             ),
           ),
-          const AboutScreen(),
-          const AnalyticsScreen(),
-          const AnnouncementsScreen(),
-          const ProfileScreen(
+          AboutScreen(
+              onMenuPressed: () {
+                _scaffoldKey.currentState?.openDrawer();
+              },
+            ),
+            AnalyticsScreen(
+              onMenuPressed: () {
+                _scaffoldKey.currentState?.openDrawer();
+              },
+            ),
+            AnnouncementsScreen(
+               onMenuPressed: () {
+                _scaffoldKey.currentState?.openDrawer();
+              },
+            ),
+            ProfileScreen(
               name: 'Commuter', 
               email: 'commuter@lookout.ph', 
-              role: 'commmuter'
+              role: 'commmuter',
+              onMenuPressed: () {
+                _scaffoldKey.currentState?.openDrawer();
+              },
             ),
         ],
       )
