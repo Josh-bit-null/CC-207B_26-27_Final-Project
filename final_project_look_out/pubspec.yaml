@@ -61,6 +61,7 @@ flutter:
 
 
   assets:
+    - assets/images/lookOut!Banner.png
     - assets/images/lookoutLogo.png
     - assets/images/lookoutBanner.png
     - assets/images/lookoutLogo.svg

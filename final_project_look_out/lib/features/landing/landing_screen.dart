@@ -1,14 +1,13 @@
 //updated to connect to firestore - Joshua
-
 import 'dart:ui';
 
 //firebase
 import 'package:firebase_auth/firebase_auth.dart';
-
 import 'package:flutter/material.dart';
-import 'package:flutter_svg/flutter_svg.dart';
+//import 'package:flutter_svg/flutter_svg.dart'; --- commented since it is in yellow line (unused import)
 
 //services
+import '../../app/themes/app_colors.dart';
 import '../../services/auth_service.dart';
 
 // Pages
@@ -68,18 +67,16 @@ class _LandingScreenState extends State<LandingScreen> {
     final email = rawEmail.trim().toLowerCase();
     final password = rawPassword.trim();
 
-    try{
-
+    try {
       final userData = await _authService.login(
         email: email,
         password: password,
-        loginTab: expectedRole
+        loginTab: expectedRole,
       );
 
-      if(!mounted) return;
+      if (!mounted) return;
 
-      if(userData == null)
-      {
+      if (userData == null) {
         await _authService.signOut();
         _showMessage("User Not FOund");
         return;
@@ -87,9 +84,10 @@ class _LandingScreenState extends State<LandingScreen> {
 
       final String actualRole = userData['role'] ?? 'commuter';
 
-      if(actualRole != 'admin' && actualRole != expectedRole)
-      {
-        _showMessage("Wrong login tab. This account is registered as${actualRole.toUpperCase()}");
+      if (actualRole != 'admin' && actualRole != expectedRole) {
+        _showMessage(
+          "Wrong login tab. This account is registered as${actualRole.toUpperCase()}",
+        );
       }
 
       _navigateToDashboard(actualRole);
@@ -117,6 +115,7 @@ class _LandingScreenState extends State<LandingScreen> {
       await _authService.signOut();
 
       if (!mounted) return;
+
       _showMessage(
         'Registered as ${_signupRole.toUpperCase()}! You can now log in.',
       );
@@ -137,15 +136,18 @@ class _LandingScreenState extends State<LandingScreen> {
       role == 'commuter'
           ? MaterialPageRoute(builder: (_) => CommuterHomeScreen())
           : role == 'driver'
-          ? MaterialPageRoute(builder: (_) => DriverHomeScreen())
-          : MaterialPageRoute(builder: (_) => AdminHomeScreen()),
+              ? MaterialPageRoute(builder: (_) => DriverHomeScreen())
+              : MaterialPageRoute(builder: (_) => AdminHomeScreen()),
     );
   }
 
   // NOTIFICATION
   void _showMessage(String text) {
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(behavior: SnackBarBehavior.floating, content: Text(text)),
+      SnackBar(
+        behavior: SnackBarBehavior.floating,
+        content: Text(text),
+      ),
     );
   }
 
@@ -162,30 +164,84 @@ class _LandingScreenState extends State<LandingScreen> {
       prefixIcon: Icon(icon),
       filled: true,
       fillColor: colors.surfaceContainerHighest.withValues(alpha: 0.35),
-      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+      contentPadding: const EdgeInsets.symmetric(
+        horizontal: 16,
+        vertical: 16,
+      ),
       border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(14),
         borderSide: BorderSide.none,
       ),
       enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
-        borderSide: BorderSide(color: colors.outlineVariant),
+        borderRadius: BorderRadius.circular(14),
+        borderSide: BorderSide(
+          color: colors.outlineVariant,
+        ),
       ),
       focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
-        borderSide: BorderSide(color: colors.primary, width: 1.5),
+        borderRadius: BorderRadius.circular(14),
+        borderSide: const BorderSide(
+          color: AppColor.primaryBlue,
+          width: 1.5,
+        ),
       ),
       errorBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
-        borderSide: BorderSide(color: colors.error),
+        borderRadius: BorderRadius.circular(14),
+        borderSide: BorderSide(
+          color: colors.error,
+        ),
       ),
       focusedErrorBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
-        borderSide: BorderSide(color: colors.error, width: 1.5),
+        borderRadius: BorderRadius.circular(14),
+        borderSide: BorderSide(
+          color: colors.error,
+          width: 1.5,
+        ),
       ),
     );
   }
 
+  // REUSABLE BLUE-TO-TEAL BUTTON
+  Widget _gradientButton({
+    required String label,
+    required VoidCallback onPressed,
+  }) {
+    return SizedBox(
+      height: 50,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            colors: [
+              AppColor.primaryBlue,
+              AppColor.secondaryTeal,
+            ],
+          ),
+          borderRadius: BorderRadius.circular(14),
+        ),
+        child: ElevatedButton(
+          onPressed: onPressed,
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.transparent,
+            foregroundColor: AppColor.surfaceLight,
+            shadowColor: Colors.transparent,
+            elevation: 0,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(14),
+            ),
+          ),
+          child: Text(
+            label,
+            style: const TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 15,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  // MAIN BUILD
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -194,178 +250,193 @@ class _LandingScreenState extends State<LandingScreen> {
     return DefaultTabController(
       length: 3,
       child: Scaffold(
-        body: Stack(
-          children: [
-            // BLURRED BACKGROUND
-            Positioned.fill(
-              child: ClipRect(
-                child: ImageFiltered(
-                  imageFilter: ImageFilter.blur(sigmaX: 6.0, sigmaY: 6.0),
-                  child: Image.asset(
-                    'assets/images/lookoutBanner.png',
-                    fit: BoxFit.cover,
-                    opacity: const AlwaysStoppedAnimation(0.25),
-                  ),
-                ),
-              ),
-            ),
+        backgroundColor: AppColor.brandNavy,
+        body: SafeArea(
+          child: LayoutBuilder(
+            builder: (context, constraints) {
 
-            // BACKGROUND OVERLAY
-            Positioned.fill(
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    colors: [
-                      colors.primary.withValues(alpha: 0.12),
-                      colors.surface.withValues(alpha: 0.90),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-
-            // MAIN CONTENT
-            SafeArea(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 24,
-                  vertical: 32,
-                ),
-                child: Center(
-                  child: ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 440),
-                    child: Column(
-                      children: [
-                        // APP LOGO
-                        SvgPicture.asset(
-                          'assets/images/lookoutLogo.svg',
-                          width: 90,
-                          height: 90,
+              return Column(
+                children: [
+                  // LOOKOUT BANNER
+                  Center(
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 480),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 20),
+                        child: Image.asset(
+                          'assets/images/lookOut!Banner.png',
+                          width: double.infinity,
+                          fit: BoxFit.fitWidth,
+                          alignment: Alignment.center,
                         ),
-
-                        const SizedBox(height: 12),
-
-                        // APP NAME
-                        Text(
-                          'LookOut!',
-                          style: theme.textTheme.headlineLarge?.copyWith(
-                            fontWeight: FontWeight.bold,
-                            color: colors.primary,
-                          ),
-                        ),
-
-                        const SizedBox(height: 6),
-
-                        Text(
-                          'Iloilo City Real-Time PUV Tracker',
-                          textAlign: TextAlign.center,
-                          style: theme.textTheme.bodyMedium?.copyWith(
-                            color: colors.onSurfaceVariant,
-                          ),
-                        ),
-
-                        const SizedBox(height: 28),
-
-                        // AUTHENTICATION CARD
-                        Card(
-                          elevation: 4,
-                          color: colors.surface,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(24),
-                          ),
-                          clipBehavior: Clip.antiAlias,
-                          child: Padding(
-                            padding: const EdgeInsets.all(20),
-                            child: Column(
-                              children: [
-                                Text(
-                                  'Welcome!',
-                                  style: theme.textTheme.headlineSmall
-                                      ?.copyWith(fontWeight: FontWeight.bold),
-                                ),
-
-                                const SizedBox(height: 6),
-
-                                Text(
-                                  'Log in or create an account to get started.',
-                                  textAlign: TextAlign.center,
-                                  style: theme.textTheme.bodySmall,
-                                ),
-
-                                const SizedBox(height: 20),
-
-                                // TABS
-                                TabBar(
-                                  labelColor: colors.onPrimaryContainer,
-                                  unselectedLabelColor: colors.onSurfaceVariant,
-                                  indicatorSize: TabBarIndicatorSize.tab,
-                                  indicator: BoxDecoration(
-                                    color: colors.primaryContainer,
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                  dividerColor: Colors.transparent,
-                                  labelStyle: const TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 13,
-                                  ),
-                                  tabs: const [
-                                    Tab(text: 'Commuter'),
-                                    Tab(text: 'Driver'),
-                                    Tab(text: 'Sign Up'),
-                                  ],
-                                ),
-
-                                const SizedBox(height: 20),
-
-                                // TAB CONTENT
-                                SizedBox(
-                                  height: 390,
-                                  child: TabBarView(
-                                    children: [
-                                      _buildLoginForm(
-                                        formKey: _commuterFormKey,
-                                        roleLabel: 'Commuter',
-                                        expectedRole: 'commuter',
-                                        emailController: _commuterEmailCtrl,
-                                        passwordController: _commuterPassCtrl,
-                                      ),
-
-                                      _buildLoginForm(
-                                        formKey: _driverFormKey,
-                                        roleLabel: 'Driver',
-                                        expectedRole: 'driver',
-                                        emailController: _driverEmailCtrl,
-                                        passwordController: _driverPassCtrl,
-                                      ),
-
-                                      _buildSignupForm(),
-                                    ],
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-
-                        const SizedBox(height: 24),
-
-                        // FOOTER
-                        Text(
-                          'Made for Iloilo City',
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            color: colors.onSurfaceVariant,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ],
+                      ),
                     ),
                   ),
-                ),
-              ),
-            ),
-          ],
+
+                  // AUTHENTICATION SECTION
+                  Expanded(
+                    child: SingleChildScrollView(
+                      padding: const EdgeInsets.fromLTRB(
+                        20,
+                        0,
+                        20,
+                        16,
+                      ),
+                      child: Center(
+                        child: ConstrainedBox(
+                          constraints: const BoxConstraints(
+                            maxWidth: 440,
+                          ),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              // AUTHENTICATION CARD
+                              Container(
+                                width: double.infinity,
+                                padding: const EdgeInsets.all(20),
+                                decoration: BoxDecoration(
+                                  color: colors.surface,
+                                  borderRadius: BorderRadius.circular(24),
+                                  border: Border.all(
+                                    color: AppColor.secondaryTeal.withValues(
+                                      alpha: 0.7,
+                                    ),
+                                    width: 1.5,
+                                  ),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black.withValues(
+                                        alpha: 0.22,
+                                      ),
+                                      blurRadius: 22,
+                                      offset: const Offset(0, 10),
+                                    ),
+                                  ],
+                                ),
+                                child: Column(
+                                  children: [
+                                    // WELCOME TEXT
+                                    Text(
+                                      'Welcome!',
+                                      style: theme.textTheme.headlineSmall
+                                          ?.copyWith(
+                                        fontWeight: FontWeight.bold,
+                                        color: colors.onSurface,
+                                      ),
+                                    ),
+
+                                    const SizedBox(height: 6),
+
+                                    Text(
+                                      'Log in or create an account to get started.',
+                                      textAlign: TextAlign.center,
+                                      style: theme.textTheme.bodySmall?.copyWith(
+                                        color: colors.onSurfaceVariant,
+                                      ),
+                                    ),
+
+                                    const SizedBox(height: 20),
+
+                                    // ROLE AND SIGNUP TABS
+                                    TabBar(
+                                      labelColor: AppColor.surfaceLight,
+                                      unselectedLabelColor:
+                                          colors.onSurfaceVariant,
+                                      indicatorSize: TabBarIndicatorSize.tab,
+                                      indicator: BoxDecoration(
+                                        color: AppColor.primaryBlue,
+                                        borderRadius: BorderRadius.circular(12),
+                                      ),
+                                      dividerColor: Colors.transparent,
+                                      labelStyle: const TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 13,
+                                      ),
+                                      unselectedLabelStyle: const TextStyle(
+                                        fontWeight: FontWeight.w500,
+                                        fontSize: 13,
+                                      ),
+                                      tabs: const [
+                                        Tab(
+                                          icon: Icon(Icons.person_outline),
+                                          text: 'Commuter',
+                                        ),
+                                        Tab(
+                                          icon: Icon(
+                                            Icons.directions_bus_outlined,
+                                          ),
+                                          text: 'Driver',
+                                        ),
+                                        Tab(
+                                          icon: Icon(
+                                            Icons.person_add_outlined,
+                                          ),
+                                          text: 'Sign Up',
+                                        ),
+                                      ],
+                                    ),
+
+                                    const SizedBox(height: 16),
+
+                                    // TAB CONTENT
+                                    SizedBox(
+                                      height: 290,
+                                      child: TabBarView(
+                                        children: [
+                                          // COMMUTER LOGIN
+                                          _buildLoginForm(
+                                            formKey: _commuterFormKey,
+                                            roleLabel: 'Commuter',
+                                            expectedRole: 'commuter',
+                                            emailController:
+                                                _commuterEmailCtrl,
+                                            passwordController:
+                                                _commuterPassCtrl,
+                                          ),
+
+                                          // DRIVER LOGIN
+                                          _buildLoginForm(
+                                            formKey: _driverFormKey,
+                                            roleLabel: 'Driver',
+                                            expectedRole: 'driver',
+                                            emailController:
+                                                _driverEmailCtrl,
+                                            passwordController:
+                                                _driverPassCtrl,
+                                          ),
+
+                                          // SIGNUP
+                                          _buildSignupForm(),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+
+                              const SizedBox(height: 20),
+
+                              // FOOTER
+                              Text(
+                                'MADE FOR ILOILO CITY',
+                                style: theme.textTheme.bodySmall?.copyWith(
+                                  color: AppColor.surfaceLight.withValues(
+                                    alpha: 0.8,
+                                  ),
+                                  fontWeight: FontWeight.w600,
+                                  letterSpacing: 1.5,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              );
+            },
+          ),
         ),
       ),
     );
@@ -391,6 +462,7 @@ class _LandingScreenState extends State<LandingScreen> {
             '$roleLabel Login',
             style: theme.textTheme.titleLarge?.copyWith(
               fontWeight: FontWeight.bold,
+              color: colors.onSurface,
             ),
           ),
 
@@ -398,11 +470,14 @@ class _LandingScreenState extends State<LandingScreen> {
 
           Text(
             'Enter your account details to continue.',
-            style: theme.textTheme.bodySmall,
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: colors.onSurfaceVariant,
+            ),
           ),
 
           const SizedBox(height: 20),
 
+          // EMAIL
           TextFormField(
             controller: emailController,
             keyboardType: TextInputType.emailAddress,
@@ -418,61 +493,47 @@ class _LandingScreenState extends State<LandingScreen> {
 
           const SizedBox(height: 16),
 
+          // PASSWORD
           TextFormField(
             controller: passwordController,
             obscureText: _obscurePassword,
-            decoration:
-                _inputDecoration(
-                  context,
-                  label: 'Password',
-                  icon: Icons.lock_outline,
-                ).copyWith(
-                  suffixIcon: IconButton(
-                    tooltip: _obscurePassword
-                        ? 'Show password'
-                        : 'Hide password',
-                    icon: Icon(
-                      _obscurePassword
-                          ? Icons.visibility_off_outlined
-                          : Icons.visibility_outlined,
-                    ),
-                    onPressed: () {
-                      setState(() {
-                        _obscurePassword = !_obscurePassword;
-                      });
-                    },
-                  ),
+            decoration: _inputDecoration(
+              context,
+              label: 'Password',
+              icon: Icons.lock_outline,
+            ).copyWith(
+              suffixIcon: IconButton(
+                tooltip: _obscurePassword
+                    ? 'Show password'
+                    : 'Hide password',
+                icon: Icon(
+                  _obscurePassword
+                      ? Icons.visibility_off_outlined
+                      : Icons.visibility_outlined,
                 ),
+                onPressed: () {
+                  setState(() {
+                    _obscurePassword = !_obscurePassword;
+                  });
+                },
+              ),
+            ),
             validator: (val) =>
-                (val == null || val.isEmpty) ? 'Enter your password' : null,
+                (val == null || val.isEmpty)
+                    ? 'Enter your password'
+                    : null,
           ),
 
           const SizedBox(height: 24),
 
-          SizedBox(
-            height: 50,
-            child: ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: colors.primary,
-                foregroundColor: colors.onPrimary,
-                elevation: 0,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-              ),
-              onPressed: () => _handleLogin(
-                formKey: formKey,
-                expectedRole: expectedRole,
-                rawEmail: emailController.text,
-                rawPassword: passwordController.text,
-              ),
-              child: Text(
-                'Log In as $roleLabel',
-                style: const TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 15,
-                ),
-              ),
+          // LOGIN BUTTON
+          _gradientButton(
+            label: 'Log In as $roleLabel',
+            onPressed: () => _handleLogin(
+              formKey: formKey,
+              expectedRole: expectedRole,
+              rawEmail: emailController.text,
+              rawPassword: passwordController.text,
             ),
           ),
         ],
@@ -495,6 +556,7 @@ class _LandingScreenState extends State<LandingScreen> {
               'Create an Account',
               style: theme.textTheme.titleLarge?.copyWith(
                 fontWeight: FontWeight.bold,
+                color: colors.onSurface,
               ),
             ),
 
@@ -502,7 +564,9 @@ class _LandingScreenState extends State<LandingScreen> {
 
             Text(
               'Choose your account type and enter your details.',
-              style: theme.textTheme.bodySmall,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: colors.onSurfaceVariant,
+              ),
             ),
 
             const SizedBox(height: 16),
@@ -566,28 +630,27 @@ class _LandingScreenState extends State<LandingScreen> {
             TextFormField(
               controller: _signupPassCtrl,
               obscureText: _obscurePassword,
-              decoration:
-                  _inputDecoration(
-                    context,
-                    label: 'Password (min 6 chars)',
-                    icon: Icons.lock_outline,
-                  ).copyWith(
-                    suffixIcon: IconButton(
-                      tooltip: _obscurePassword
-                          ? 'Show password'
-                          : 'Hide password',
-                      icon: Icon(
-                        _obscurePassword
-                            ? Icons.visibility_off_outlined
-                            : Icons.visibility_outlined,
-                      ),
-                      onPressed: () {
-                        setState(() {
-                          _obscurePassword = !_obscurePassword;
-                        });
-                      },
-                    ),
+              decoration: _inputDecoration(
+                context,
+                label: 'Password (min 6 chars)',
+                icon: Icons.lock_outline,
+              ).copyWith(
+                suffixIcon: IconButton(
+                  tooltip: _obscurePassword
+                      ? 'Show password'
+                      : 'Hide password',
+                  icon: Icon(
+                    _obscurePassword
+                        ? Icons.visibility_off_outlined
+                        : Icons.visibility_outlined,
                   ),
+                  onPressed: () {
+                    setState(() {
+                      _obscurePassword = !_obscurePassword;
+                    });
+                  },
+                ),
+              ),
               validator: (val) => (val == null || val.length < 6)
                   ? 'Minimum 6 characters'
                   : null,
@@ -596,26 +659,10 @@ class _LandingScreenState extends State<LandingScreen> {
             const SizedBox(height: 20),
 
             // CREATE ACCOUNT BUTTON
-            SizedBox(
-              height: 50,
-              child: ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: colors.primary,
-                  foregroundColor: colors.onPrimary,
-                  elevation: 0,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-                onPressed: _handleSignup,
-                child: Text(
+            _gradientButton(
+              label:
                   'Create ${_signupRole == 'commuter' ? 'Commuter' : 'Driver'} Account',
-                  style: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 14,
-                  ),
-                ),
-              ),
+              onPressed: _handleSignup,
             ),
           ],
         ),
