@@ -9,6 +9,7 @@ import 'package:final_project_look_out/features/commuter_exclusive/saved/saved_s
 import 'package:final_project_look_out/features/landing/landing_screen.dart';
 import 'package:final_project_look_out/features/profile/profile_screen.dart';
 import 'package:final_project_look_out/services/auth_service.dart';
+import 'package:final_project_look_out/widgets/confirmation_dialog.dart';
 
 //reusable widgets
 import '../../widgets/floating_button.dart';
@@ -273,6 +274,17 @@ class _CommuterHomeScreenState extends State<CommuterHomeScreen> {
             leading: const Icon(Icons.logout),
             title: const Text('Sign Out'),
             onTap: () async {
+              final confirmed = await showDialog<bool>(
+                context: context,
+                builder: (context) => const ConfirmationDialog(
+                  title: 'Sign Out',
+                  message: 'Are you sure you want to sign out?',
+                  confirmText: 'Sign Out',
+                ),
+              );
+
+              if (confirmed != true || !context.mounted) return;
+
               Navigator.pop(context);
 
               await AuthService().signOut();
@@ -496,7 +508,6 @@ class _CommuterHomeScreenState extends State<CommuterHomeScreen> {
                 _scaffoldKey.currentState?.openDrawer();
               },
             ),
-
           ],
         ),
       floatingActionButton: selectedIndex == 0
