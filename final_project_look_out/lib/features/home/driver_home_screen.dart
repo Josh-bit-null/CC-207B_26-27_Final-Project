@@ -111,6 +111,9 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
     super.dispose();
   }
 
+  final GlobalKey<ScaffoldState> _scaffoldKey =
+    GlobalKey<ScaffoldState>();
+
   int selectedIndex = 0;
 
   @override
@@ -123,8 +126,13 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
           ? const LookOutAppBar(title: 'Driver Dashboard')
           : null,
 
+<<<<<<< HEAD
       // Drawer
       drawer: LookOutDrawer(
+=======
+      key: _scaffoldKey,
+       drawer: LookOutDrawer(
+>>>>>>> 87fcdd94518db1932612c2b4615a5617663ee8a5
         header: Padding(
           padding: const EdgeInsets.all(16),
           child: Image.asset('assets/images/lookoutBanner.png', height: 60),
@@ -419,6 +427,7 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
               ),
             ],
           ),
+<<<<<<< HEAD
           const AboutScreen(),
           const AnalyticsScreen(),
           const AnnouncementsScreen(),
@@ -427,6 +436,31 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
             email: 'commuter@lookout.ph',
             role: 'commmuter',
           ),
+=======
+          AboutScreen(
+              onMenuPressed: () {
+                _scaffoldKey.currentState?.openDrawer();
+              },
+            ),
+            AnalyticsScreen(
+              onMenuPressed: () {
+                _scaffoldKey.currentState?.openDrawer();
+              },
+            ),
+            AnnouncementsScreen(
+               onMenuPressed: () {
+                _scaffoldKey.currentState?.openDrawer();
+              },
+            ),
+            ProfileScreen(
+              name: 'Commuter', 
+              email: 'commuter@lookout.ph', 
+              role: 'commmuter',
+              onMenuPressed: () {
+                _scaffoldKey.currentState?.openDrawer();
+              },
+            ),
+>>>>>>> 87fcdd94518db1932612c2b4615a5617663ee8a5
         ],
       ),
       // Floating Location Button

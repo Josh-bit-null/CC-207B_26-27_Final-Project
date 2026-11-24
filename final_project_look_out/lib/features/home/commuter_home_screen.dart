@@ -29,6 +29,7 @@ import '../../app/themes/app_colors.dart';
 import '../../services/firestore_poke_service.dart';
 
 class CommuterHomeScreen extends StatefulWidget {
+  
   const CommuterHomeScreen({super.key});
 
   @override
@@ -157,6 +158,9 @@ class _CommuterHomeScreenState extends State<CommuterHomeScreen> {
     super.dispose();
   }
 
+  final GlobalKey<ScaffoldState> _scaffoldKey =
+    GlobalKey<ScaffoldState>();
+
   int selectedIndex = 0;
 
   @override
@@ -169,7 +173,7 @@ class _CommuterHomeScreenState extends State<CommuterHomeScreen> {
           ? const LookOutAppBar(title: 'Commuter Dashboard')
           : null,
 
-      // Drawer
+      key: _scaffoldKey,
       drawer: LookOutDrawer(
         header: Padding(
           padding: const EdgeInsets.all(16),
@@ -389,6 +393,7 @@ class _CommuterHomeScreenState extends State<CommuterHomeScreen> {
             ],
           ),
 
+<<<<<<< HEAD
           const AboutScreen(),
           const AnalyticsScreen(),
           const AnnouncementsScreen(),
@@ -399,6 +404,34 @@ class _CommuterHomeScreenState extends State<CommuterHomeScreen> {
           ),
         ],
       ),
+=======
+            AboutScreen(
+              onMenuPressed: () {
+                _scaffoldKey.currentState?.openDrawer();
+              },
+            ),
+            AnalyticsScreen(
+              onMenuPressed: () {
+                _scaffoldKey.currentState?.openDrawer();
+              },
+            ),
+            AnnouncementsScreen(
+               onMenuPressed: () {
+                _scaffoldKey.currentState?.openDrawer();
+              },
+            ),
+            ProfileScreen(
+              name: 'Commuter', 
+              email: 'commuter@lookout.ph', 
+              role: 'commmuter',
+              onMenuPressed: () {
+                _scaffoldKey.currentState?.openDrawer();
+              },
+            ),
+
+          ],
+        ),
+>>>>>>> 87fcdd94518db1932612c2b4615a5617663ee8a5
       floatingActionButton: selectedIndex == 0
           ? FloatingButton(
               onPressed: () {

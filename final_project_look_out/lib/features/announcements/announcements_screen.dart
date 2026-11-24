@@ -2,7 +2,13 @@ import 'package:final_project_look_out/widgets/lookout_app_bar.dart';
 import 'package:flutter/material.dart';
 
 class AnnouncementsScreen extends StatelessWidget {
-  const AnnouncementsScreen({super.key});
+  
+  final VoidCallback? onMenuPressed;
+
+  const AnnouncementsScreen({
+    super.key,
+    this.onMenuPressed,
+  });
 
   static const _items =
       <({IconData icon, String category, String title, String message, String date})>[
@@ -41,6 +47,7 @@ class AnnouncementsScreen extends StatelessWidget {
           onPressed: () => Navigator.of(context).maybePop(),
         ),
         title: 'Announcements',
+        onMenuPressed: onMenuPressed,
       ),
 
       body: ListView(

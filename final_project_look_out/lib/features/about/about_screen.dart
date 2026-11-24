@@ -1,23 +1,23 @@
 import 'package:final_project_look_out/widgets/lookout_app_bar.dart';
 import 'package:flutter/material.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 
 class AboutScreen extends StatelessWidget {
-  const AboutScreen({super.key});
+
+  final VoidCallback? onMenuPressed;
+
+  static final Future<PackageInfo> _packageInfo = PackageInfo.fromPlatform();
+
+  const AboutScreen({super.key, this.onMenuPressed});
 
   static const _sections = <({IconData icon, String title, String body})>[
     (
       icon: Icons.location_on_outlined,
       title: 'About the app',
       body:
-          'LookOut! is a commuter-focused concept for making public transport '
-          'journeys around Iloilo City easier to understand. It brings route '
-          'information and vehicle tracking together in benefit for commuters and PUV drivers/conductors.',
-    ),
-    (
-      icon: Icons.groups_outlined,
-      title: 'Our team',
-      body:
-          'LookOut! is a student project created by the Undeciders team.',
+          'Look Out! provides commuters with continuous real-time GPS tracking of approaching vehicles, '
+          'live speed updates, estimated times of arrival, active route filters, and current vehicle capacity '
+          'status, such as Vacant or Full.',
     ),
     (
       icon: Icons.favorite_outline,
@@ -45,7 +45,8 @@ class AboutScreen extends StatelessWidget {
           icon: const Icon(Icons.arrow_back),
           onPressed: () => Navigator.of(context).maybePop(),
         ),
-        title:'About LookOut!',
+        title: 'About LookOut!',
+        onMenuPressed: onMenuPressed,
       ),
 
       body: ListView(
@@ -59,10 +60,7 @@ class AboutScreen extends StatelessWidget {
               borderRadius: BorderRadius.circular(20),
             ),
             child: Padding(
-              padding: const EdgeInsets.symmetric(
-                horizontal: 24,
-                vertical: 28,
-              ),
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 28),
               child: Column(
                 children: [
                   Container(
@@ -180,6 +178,66 @@ class AboutScreen extends StatelessWidget {
 
           const SizedBox(height: 12),
 
+          Text(
+            'Get To Know The Team',
+            style: theme.textTheme.titleLarge?.copyWith(
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+
+          const SizedBox(height: 12),
+
+          Card(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('The Team'),
+                ListTile(
+                  title: Text('Undeciders'),
+                  subtitle: Text(
+                    'Undeciders team is a group of third year students, '
+                    'taking up Information and Communications Technology program.'
+                    'LookOut! is a student project they created. ',
+                  ),
+                ),
+
+                const SizedBox(height: 16),
+
+                const Divider(),
+
+                const SizedBox(height: 16),
+
+                Text('The Developers'),
+
+                ListTile(
+                  leading: const CircleAvatar(child: Icon(Icons.person)),
+                  title: Text('Joshua John Ezekiel Pangantihon'),
+                  subtitle: Text('Hacker/Developer'),
+                ),
+                ListTile(
+                  leading: const CircleAvatar(child: Icon(Icons.person)),
+                  title: Text('Jessa Mae Braga'),
+                  subtitle: Text('Hipster/Designer'),
+                ),
+                ListTile(
+                  leading: const CircleAvatar(child: Icon(Icons.person)),
+                  title: Text('Ryzel John De Guia'),
+                  subtitle: Text('Hustler/Networker, Hacker/Developer'),
+                ),
+                ListTile(
+                  leading: const CircleAvatar(child: Icon(Icons.person)),
+                  title: Text('Carlo Jay Degala'),
+                  subtitle: Text('Hustler/Networker'),
+                ),
+                ListTile(
+                  leading: const CircleAvatar(child: Icon(Icons.person)),
+                  title: Text('Lianne Dane Yasa'),
+                  subtitle: Text('Hipster/Designer'),
+                ),
+              ],
+            ),
+          ),
+
           // Footer
           Center(
             child: Column(
@@ -200,6 +258,18 @@ class AboutScreen extends StatelessWidget {
                 Text(
                   'LookOut! • The Undeciders',
                   style: theme.textTheme.bodySmall,
+                ),
+                FutureBuilder<PackageInfo>(
+                  future: _packageInfo,
+                  builder: (context, snapshot) {
+                    if (!snapshot.hasData) {
+                      return const SizedBox.shrink();
+                    }
+
+                    return Text(
+                      'Version ${snapshot.data!.version} (build ${snapshot.data!.buildNumber})',
+                    );
+                  },
                 ),
               ],
             ),
