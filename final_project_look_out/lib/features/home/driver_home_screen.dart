@@ -3,6 +3,7 @@
 //screens
 import 'package:final_project_look_out/features/landing/landing_screen.dart';
 import 'package:final_project_look_out/services/auth_service.dart';
+import 'package:final_project_look_out/widgets/confirmation_dialog.dart';
 
 import '../about/about_screen.dart';
 import '../analytics/analytics_screen.dart';
@@ -246,6 +247,17 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
             leading: const Icon(Icons.logout),
             title: const Text('Sign Out'),
             onTap: () async {
+              final confirmed = await showDialog<bool>(
+                context: context,
+                builder: (context) => const ConfirmationDialog(
+                  title: 'Sign Out',
+                  message: 'Are you sure you want to sign out?',
+                  confirmText: 'Sign Out',
+                ),
+              );
+
+              if (confirmed != true || !context.mounted) return;
+
               Navigator.pop(context);
 
               await AuthService().signOut();
