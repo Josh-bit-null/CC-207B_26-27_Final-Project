@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 
 //firebase
 import 'package:firebase_core/firebase_core.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 
 // Theme configuration
 import './app/themes/app_theme.dart';
