@@ -392,32 +392,33 @@ class _CommuterHomeScreenState extends State<CommuterHomeScreen> {
               ),
             ],
           ),
-          AboutScreen(
-            onMenuPressed: () {
-              _scaffoldKey.currentState?.openDrawer();
-            },
-          ),
-          AnalyticsScreen(
-            onMenuPressed: () {
-              _scaffoldKey.currentState?.openDrawer();
-            },
-          ),
-          AnnouncementsScreen(
-            onMenuPressed: () {
-              _scaffoldKey.currentState?.openDrawer();
-            },
-          ),
-          ProfileScreen(
-            name: 'Commuter', 
-            email: 'commuter@lookout.ph', 
-            role: 'commmuter',
-            onMenuPressed: () {
-              _scaffoldKey.currentState?.openDrawer();
-            },
-          ),
 
-        ],
-      ),
+            AboutScreen(
+              onMenuPressed: () {
+                _scaffoldKey.currentState?.openDrawer();
+              },
+            ),
+            AnalyticsScreen(
+              onMenuPressed: () {
+                _scaffoldKey.currentState?.openDrawer();
+              },
+            ),
+            AnnouncementsScreen(
+               onMenuPressed: () {
+                _scaffoldKey.currentState?.openDrawer();
+              },
+            ),
+            ProfileScreen(
+              name: 'Commuter', 
+              email: 'commuter@lookout.ph', 
+              role: 'commmuter',
+              onMenuPressed: () {
+                _scaffoldKey.currentState?.openDrawer();
+              },
+            ),
+
+          ],
+        ),
       floatingActionButton: selectedIndex == 0
           ? FloatingButton(
               onPressed: () {
