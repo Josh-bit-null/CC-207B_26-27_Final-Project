@@ -1,4 +1,4 @@
-import 'package:final_project_look_out/widgets/lookout_app_bar.dart';
+import '../../widgets/lookout_app_bar.dart';
 import 'package:flutter/material.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 

@@ -1,19 +1,19 @@
 //added poking system ETA and real time PUV tracking - Joshua
 
 //screens
-import 'package:final_project_look_out/features/about/about_screen.dart';
-import 'package:final_project_look_out/features/analytics/analytics_screen.dart';
-import 'package:final_project_look_out/features/announcements/announcements_screen.dart';
-import 'package:final_project_look_out/features/commuter_exclusive/rides/rides_screen.dart';
-import 'package:final_project_look_out/features/commuter_exclusive/saved/saved_screen.dart';
-import 'package:final_project_look_out/features/profile/profile_screen.dart';
+import '../about/about_screen.dart';
+import '../analytics/analytics_screen.dart';
+import '../announcements/announcements_screen.dart';
+import '../commuter_exclusive/rides/rides_screen.dart';
+import '../commuter_exclusive/saved/saved_screen.dart';
+import '../profile/profile_screen.dart';
 
 //reusable widgets
-import 'package:final_project_look_out/widgets/floating_button.dart';
-import 'package:final_project_look_out/widgets/lookout_app_bar.dart';
-import 'package:final_project_look_out/widgets/lookout_bottom_nav.dart';
-import 'package:final_project_look_out/widgets/lookout_drawer.dart';
-import 'package:final_project_look_out/widgets/congestion_map_layers.dart';
+import '../../widgets/floating_button.dart';
+import '../../widgets/lookout_app_bar.dart';
+import '../../widgets/lookout_bottom_nav.dart';
+import '../../widgets/lookout_drawer.dart';
+import '../../widgets/congestion_map_layers.dart';
 
 //services and packages
 import 'package:flutter/material.dart';
@@ -392,46 +392,32 @@ class _CommuterHomeScreenState extends State<CommuterHomeScreen> {
               ),
             ],
           ),
-
-<<<<<<< HEAD
-          const AboutScreen(),
-          const AnalyticsScreen(),
-          const AnnouncementsScreen(),
-          const ProfileScreen(
-            name: 'Commuter',
-            email: 'commuter@lookout.ph',
-            role: 'commmuter',
+          AboutScreen(
+            onMenuPressed: () {
+              _scaffoldKey.currentState?.openDrawer();
+            },
           ),
+          AnalyticsScreen(
+            onMenuPressed: () {
+              _scaffoldKey.currentState?.openDrawer();
+            },
+          ),
+          AnnouncementsScreen(
+            onMenuPressed: () {
+              _scaffoldKey.currentState?.openDrawer();
+            },
+          ),
+          ProfileScreen(
+            name: 'Commuter', 
+            email: 'commuter@lookout.ph', 
+            role: 'commmuter',
+            onMenuPressed: () {
+              _scaffoldKey.currentState?.openDrawer();
+            },
+          ),
+
         ],
       ),
-=======
-            AboutScreen(
-              onMenuPressed: () {
-                _scaffoldKey.currentState?.openDrawer();
-              },
-            ),
-            AnalyticsScreen(
-              onMenuPressed: () {
-                _scaffoldKey.currentState?.openDrawer();
-              },
-            ),
-            AnnouncementsScreen(
-               onMenuPressed: () {
-                _scaffoldKey.currentState?.openDrawer();
-              },
-            ),
-            ProfileScreen(
-              name: 'Commuter', 
-              email: 'commuter@lookout.ph', 
-              role: 'commmuter',
-              onMenuPressed: () {
-                _scaffoldKey.currentState?.openDrawer();
-              },
-            ),
-
-          ],
-        ),
->>>>>>> 87fcdd94518db1932612c2b4615a5617663ee8a5
       floatingActionButton: selectedIndex == 0
           ? FloatingButton(
               onPressed: () {

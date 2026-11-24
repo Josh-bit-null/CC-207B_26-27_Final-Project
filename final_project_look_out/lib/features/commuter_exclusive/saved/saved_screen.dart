@@ -1,6 +1,6 @@
-import 'package:final_project_look_out/features/commuter_exclusive/rides/rides_screen.dart';
-import 'package:final_project_look_out/widgets/lookout_app_bar.dart';
-import 'package:final_project_look_out/widgets/lookout_drawer.dart';
+import '../rides/rides_screen.dart';
+import '../../../widgets/lookout_app_bar.dart';
+import '../../../widgets/lookout_drawer.dart';
 import 'package:flutter/material.dart';
 
 class SavedScreen extends StatelessWidget {

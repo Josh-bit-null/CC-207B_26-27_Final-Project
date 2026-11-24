@@ -1,10 +1,10 @@
 //updated to be functional - Joshua
 
-import 'package:final_project_look_out/features/admin_exclusive/accounts/accounts_screen.dart';
-import 'package:final_project_look_out/features/admin_exclusive/feedbacks_faqs/feedback_faqs.dart';
+import '../accounts/accounts_screen.dart';
+import '../feedbacks_faqs/feedback_faqs.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:final_project_look_out/widgets/lookout_app_bar.dart';
-import 'package:final_project_look_out/widgets/lookout_drawer.dart';
+import '../../../widgets/lookout_app_bar.dart';
+import '../../../widgets/lookout_drawer.dart';
 import 'package:flutter/material.dart';
 
 class LogsScreen extends StatelessWidget {

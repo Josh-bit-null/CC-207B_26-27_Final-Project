@@ -1,6 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
-import 'package:final_project_look_out/services/admin_log_service.dart';
+import '../../services/admin_log_service.dart';
 
 class AdminAccountService {
   static Future<void> createAccount({

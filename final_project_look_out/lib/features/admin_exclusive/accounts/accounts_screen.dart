@@ -1,9 +1,9 @@
-import 'package:final_project_look_out/features/admin_exclusive/feedbacks_faqs/feedback_faqs.dart';
-import 'package:final_project_look_out/features/admin_exclusive/logs/logs_screen.dart';
-import 'package:final_project_look_out/services/admin_account_service.dart';
-import 'package:final_project_look_out/services/admin_log_service.dart';
-import 'package:final_project_look_out/widgets/lookout_app_bar.dart';
-import 'package:final_project_look_out/widgets/lookout_drawer.dart';
+import '../feedbacks_faqs/feedback_faqs.dart';
+import '../logs/logs_screen.dart';
+import '../../../services/admin_account_service.dart';
+import '../../../services/admin_log_service.dart';
+import '../../../widgets/lookout_app_bar.dart';
+import '../../../widgets/lookout_drawer.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 

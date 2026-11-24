@@ -1,7 +1,7 @@
-import 'package:final_project_look_out/features/driver_exclusive/start_ride/start_ride_screen.dart';
-import 'package:final_project_look_out/features/driver_exclusive/trips/trips_screen.dart';
-import 'package:final_project_look_out/widgets/lookout_app_bar.dart';
-import 'package:final_project_look_out/widgets/lookout_drawer.dart';
+import '../start_ride/start_ride_screen.dart';
+import '../trips/trips_screen.dart';
+import '../../../widgets/lookout_app_bar.dart';
+import '../../../widgets/lookout_drawer.dart';
 import 'package:flutter/material.dart';
 
 class VehiclesScreen extends StatelessWidget {

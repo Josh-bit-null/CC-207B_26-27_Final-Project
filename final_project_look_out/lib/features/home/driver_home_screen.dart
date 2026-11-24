@@ -2,20 +2,20 @@
 
 
 //screens
-import 'package:final_project_look_out/features/about/about_screen.dart';
-import 'package:final_project_look_out/features/analytics/analytics_screen.dart';
-import 'package:final_project_look_out/features/announcements/announcements_screen.dart';
-import 'package:final_project_look_out/features/driver_exclusive/start_ride/start_ride_screen.dart';
-import 'package:final_project_look_out/features/driver_exclusive/trips/trips_screen.dart';
-import 'package:final_project_look_out/features/driver_exclusive/vehicles/vehicles_screen.dart';
-import 'package:final_project_look_out/features/profile/profile_screen.dart';
+import '../about/about_screen.dart';
+import '../analytics/analytics_screen.dart';
+import '../announcements/announcements_screen.dart';
+import '../driver_exclusive/start_ride/start_ride_screen.dart';
+import '../driver_exclusive/trips/trips_screen.dart';
+import '../driver_exclusive/vehicles/vehicles_screen.dart';
+import '../profile/profile_screen.dart';
 
 //reusable widgets
-import 'package:final_project_look_out/widgets/floating_button.dart';
-import 'package:final_project_look_out/widgets/lookout_app_bar.dart';
-import 'package:final_project_look_out/widgets/lookout_bottom_nav.dart';
-import 'package:final_project_look_out/widgets/lookout_drawer.dart';
-import 'package:final_project_look_out/widgets/congestion_map_layers.dart';
+import '../../widgets/floating_button.dart';
+import '../../widgets/lookout_app_bar.dart';
+import '../../widgets/lookout_bottom_nav.dart';
+import '../../widgets/lookout_drawer.dart';
+import '../../widgets/congestion_map_layers.dart';
 
 //services and packages
 import 'package:flutter/material.dart';
@@ -126,13 +126,8 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
           ? const LookOutAppBar(title: 'Driver Dashboard')
           : null,
 
-<<<<<<< HEAD
-      // Drawer
-      drawer: LookOutDrawer(
-=======
       key: _scaffoldKey,
        drawer: LookOutDrawer(
->>>>>>> 87fcdd94518db1932612c2b4615a5617663ee8a5
         header: Padding(
           padding: const EdgeInsets.all(16),
           child: Image.asset('assets/images/lookoutBanner.png', height: 60),
@@ -427,16 +422,6 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
               ),
             ],
           ),
-<<<<<<< HEAD
-          const AboutScreen(),
-          const AnalyticsScreen(),
-          const AnnouncementsScreen(),
-          const ProfileScreen(
-            name: 'Commuter',
-            email: 'commuter@lookout.ph',
-            role: 'commmuter',
-          ),
-=======
           AboutScreen(
               onMenuPressed: () {
                 _scaffoldKey.currentState?.openDrawer();
@@ -460,7 +445,6 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
                 _scaffoldKey.currentState?.openDrawer();
               },
             ),
->>>>>>> 87fcdd94518db1932612c2b4615a5617663ee8a5
         ],
       ),
       // Floating Location Button

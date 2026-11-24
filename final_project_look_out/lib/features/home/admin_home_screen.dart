@@ -1,13 +1,13 @@
-import 'package:final_project_look_out/features/about/about_screen.dart';
-import 'package:final_project_look_out/features/admin_exclusive/accounts/accounts_screen.dart';
-import 'package:final_project_look_out/features/admin_exclusive/feedbacks_faqs/feedback_faqs.dart';
-import 'package:final_project_look_out/features/admin_exclusive/logs/logs_screen.dart';
-import 'package:final_project_look_out/features/analytics/analytics_screen.dart';
-import 'package:final_project_look_out/features/announcements/announcements_screen.dart';
-import 'package:final_project_look_out/features/profile/profile_screen.dart';
-import 'package:final_project_look_out/widgets/lookout_app_bar.dart';
-import 'package:final_project_look_out/widgets/lookout_bottom_nav.dart';
-import 'package:final_project_look_out/widgets/lookout_drawer.dart';
+import '../about/about_screen.dart';
+import '../admin_exclusive/accounts/accounts_screen.dart';
+import '../admin_exclusive/feedbacks_faqs/feedback_faqs.dart';
+import '../admin_exclusive/logs/logs_screen.dart';
+import '../analytics/analytics_screen.dart';
+import '../announcements/announcements_screen.dart';
+import '../profile/profile_screen.dart';
+import '../../widgets/lookout_app_bar.dart';
+import '../../widgets/lookout_bottom_nav.dart';
+import '../../widgets/lookout_drawer.dart';
 import 'package:flutter/material.dart';
 
 class AdminHomeScreen extends StatefulWidget {
