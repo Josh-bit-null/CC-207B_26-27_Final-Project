@@ -1,22 +1,20 @@
-import 'package:final_project_look_out/features/driver_exclusive/start_ride/start_ride_screen.dart';
-import 'package:final_project_look_out/features/driver_exclusive/trips/trips_screen.dart';
-import 'package:final_project_look_out/features/driver_exclusive/vehicles/vehicles_screen.dart';
-import 'package:final_project_look_out/features/landing/landing_screen.dart';
-import 'package:final_project_look_out/services/auth_service.dart';
-import 'package:final_project_look_out/widgets/confirmation_dialog.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/material.dart';
 
+import '../../services/auth_service.dart';
+import '../../services/local_bus_tracking_service.dart';
+import '../../widgets/confirmation_dialog.dart';
+import '../../widgets/lookout_app_bar.dart';
+import '../../widgets/lookout_bottom_nav.dart';
+import '../../widgets/lookout_drawer.dart';
 import '../about/about_screen.dart';
 import '../admin_exclusive/accounts/accounts_screen.dart';
 import '../admin_exclusive/feedbacks_faqs/feedback_faqs.dart';
 import '../admin_exclusive/logs/logs_screen.dart';
 import '../analytics/analytics_screen.dart';
 import '../announcements/announcements_screen.dart';
+import '../landing/landing_screen.dart';
 import '../profile/profile_screen.dart';
-import '../../widgets/lookout_app_bar.dart';
-import '../../widgets/lookout_bottom_nav.dart';
-import '../../widgets/lookout_drawer.dart';
-
-import 'package:flutter/material.dart';
 
 class AdminHomeScreen extends StatefulWidget {
   const AdminHomeScreen({super.key});
@@ -252,32 +250,75 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
 
                 const SizedBox(height: 12),
 
-                // Summary Cards
-                Wrap(
-                  spacing: 12,
-                  runSpacing: 12,
-                  children: const [
-                    AdminSummaryCard(
-                      title: 'Total Users',
-                      value: '—',
-                      icon: Icons.people_outline,
-                    ),
-                    AdminSummaryCard(
-                      title: 'Total Drivers',
-                      value: '—',
-                      icon: Icons.person_outline,
-                    ),
-                    AdminSummaryCard(
-                      title: 'Registered Vehicles',
-                      value: '—',
-                      icon: Icons.directions_bus_outlined,
-                    ),
-                    AdminSummaryCard(
-                      title: 'Active Trips',
-                      value: '—',
-                      icon: Icons.route_outlined,
-                    ),
-                  ],
+                StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+                  stream: FirebaseFirestore.instance
+                      .collection('users')
+                      .snapshots(),
+                  builder: (context, snapshot) {
+                    if (snapshot.hasError) {
+                      return Text(
+                        'Unable to load system overview: ${snapshot.error}',
+                      );
+                    }
+                    if (!snapshot.hasData) {
+                      return const Center(child: CircularProgressIndicator());
+                    }
+
+                    var driverCount = 0;
+                    final registeredPlates = <String>{};
+                    for (final user in snapshot.data!.docs) {
+                      final data = user.data();
+                      if ((data['role'] as String?)?.trim().toLowerCase() ==
+                          'driver') {
+                        driverCount++;
+                        final plates = data['plates'];
+                        if (plates is Iterable) {
+                          registeredPlates.addAll(
+                            plates
+                                .whereType<String>()
+                                .where((plate) => plate.isNotEmpty)
+                                .map((plate) => plate.toUpperCase()),
+                          );
+                        }
+                        final activePlate = data['activePlate'];
+                        if (activePlate is String && activePlate.isNotEmpty) {
+                          registeredPlates.add(activePlate.toUpperCase());
+                        }
+                      }
+                    }
+
+                    return ValueListenableBuilder<List<ActiveBus>>(
+                      valueListenable:
+                          LocalBusTrackingService.instance.activeBuses,
+                      builder: (context, activeBuses, _) => Wrap(
+                        spacing: 12,
+                        runSpacing: 12,
+                        children: [
+                          AdminSummaryCard(
+                            title: 'Total Users',
+                            value: '${snapshot.data!.docs.length}',
+                            icon: Icons.people_outline,
+                          ),
+                          AdminSummaryCard(
+                            title: 'Total Drivers',
+                            value: '$driverCount',
+                            icon: Icons.person_outline,
+                          ),
+                          AdminSummaryCard(
+                            title: 'Registered Vehicles',
+                            value: '${registeredPlates.length}',
+                            icon: Icons.directions_bus_outlined,
+                          ),
+                          AdminSummaryCard(
+                            title: 'Active Rides (this device)',
+                            value:
+                                '${activeBuses.where((bus) => bus.isActive).length}',
+                            icon: Icons.route_outlined,
+                          ),
+                        ],
+                      ),
+                    );
+                  },
                 ),
 
                 const SizedBox(height: 28),
@@ -298,6 +339,7 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
                   icon: Icons.manage_accounts_outlined,
                   title: 'User Accounts',
                   subtitle: 'Manage registered user accounts',
+                  onTap: () => setState(() => selectedIndex = 1),
                 ),
 
                 // Feedback and FAQs
@@ -306,6 +348,7 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
                   icon: Icons.feedback_outlined,
                   title: 'Feedback and FAQs',
                   subtitle: 'Review feedback and frequently asked questions',
+                  onTap: () => setState(() => selectedIndex = 2),
                 ),
 
                 // Activity Logs
@@ -314,14 +357,15 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
                   icon: Icons.history,
                   title: 'Activity Logs',
                   subtitle: 'Monitor recorded system activities',
+                  onTap: () => setState(() => selectedIndex = 3),
                 ),
 
-                // Ride Monitoring
                 _buildManagementCard(
                   context,
-                  icon: Icons.directions_bus_outlined,
-                  title: 'Ride Monitoring',
-                  subtitle: 'View and monitor trip activities',
+                  icon: Icons.campaign_outlined,
+                  title: 'Announcements',
+                  subtitle: 'View service and project updates',
+                  onTap: () => setState(() => selectedIndex = 4),
                 ),
 
                 const SizedBox(height: 20),
@@ -336,54 +380,70 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
 
                 const SizedBox(height: 12),
 
-                Card(
-                  elevation: 1,
-                  color: theme.colorScheme.surface,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  child: Padding(
-                    padding: const EdgeInsets.all(20),
-                    child: Center(
+                StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+                  stream: FirebaseFirestore.instance
+                      .collection('logs')
+                      .orderBy('createdAt', descending: true)
+                      .limit(5)
+                      .snapshots(),
+                  builder: (context, snapshot) {
+                    if (snapshot.hasError) {
+                      return Text(
+                        'Unable to load recent activity: ${snapshot.error}',
+                      );
+                    }
+                    if (!snapshot.hasData) {
+                      return const Center(child: CircularProgressIndicator());
+                    }
+                    if (snapshot.data!.docs.isEmpty) {
+                      return const Card(
+                        child: ListTile(
+                          leading: Icon(Icons.history),
+                          title: Text('No activity has been recorded.'),
+                        ),
+                      );
+                    }
+                    return Card(
                       child: Column(
-                        children: [
-                          Icon(
-                            Icons.history,
-                            size: 36,
-                            color: theme.colorScheme.onSurfaceVariant,
-                          ),
-                          const SizedBox(height: 10),
-                          Text(
-                            'No recent activity available',
-                            style: theme.textTheme.titleSmall,
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            'Activity records will appear here when available.',
-                            textAlign: TextAlign.center,
-                            style: theme.textTheme.bodySmall,
-                          ),
-                        ],
+                        children: snapshot.data!.docs.map((log) {
+                          final data = log.data();
+                          final createdAt = data['createdAt'];
+                          final dateLabel = createdAt is Timestamp
+                              ? createdAt
+                                    .toDate()
+                                    .toLocal()
+                                    .toString()
+                                    .substring(0, 16)
+                              : 'Time unavailable';
+                          return ListTile(
+                            leading: const Icon(Icons.history),
+                            title: Text(data['title'] as String? ?? 'Activity'),
+                            subtitle: Text(
+                              '${data['description'] as String? ?? ''}\n$dateLabel',
+                            ),
+                            isThreeLine: true,
+                          );
+                        }).toList(),
                       ),
-                    ),
-                  ),
+                    );
+                  },
                 ),
 
                 const SizedBox(height: 16),
               ],
             ),
           ),
-          StartRideScreen(
+          AccountsScreen(
             onMenuPressed: () {
               _scaffoldKey.currentState?.openDrawer();
             },
           ),
-          TripsScreen(
+          FeedbackFaqsScreen(
             onMenuPressed: () {
               _scaffoldKey.currentState?.openDrawer();
             },
           ),
-          VehiclesScreen(
+          LogsScreen(
             onMenuPressed: () {
               _scaffoldKey.currentState?.openDrawer();
             },
@@ -404,6 +464,7 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
     required IconData icon,
     required String title,
     required String subtitle,
+    required VoidCallback onTap,
   }) {
     final theme = Theme.of(context);
 
@@ -425,6 +486,7 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
           ),
         ),
         subtitle: Text(subtitle),
+        onTap: onTap,
       ),
     );
   }

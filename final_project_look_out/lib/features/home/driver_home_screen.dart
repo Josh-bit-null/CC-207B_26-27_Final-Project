@@ -1,9 +1,10 @@
 //added poking system ETA and real time PUV tracking - Joshua
 
+import 'dart:async';
+
 //screens
-import 'package:final_project_look_out/features/landing/landing_screen.dart';
-import 'package:final_project_look_out/services/auth_service.dart';
-import 'package:final_project_look_out/widgets/confirmation_dialog.dart';
+import '../../services/auth_service.dart';
+import '../../widgets/confirmation_dialog.dart';
 
 import '../about/about_screen.dart';
 import '../analytics/analytics_screen.dart';
@@ -11,6 +12,7 @@ import '../announcements/announcements_screen.dart';
 import '../driver_exclusive/start_ride/start_ride_screen.dart';
 import '../driver_exclusive/trips/trips_screen.dart';
 import '../driver_exclusive/vehicles/vehicles_screen.dart';
+import '../landing/landing_screen.dart';
 import '../profile/profile_screen.dart';
 
 //reusable widgets
@@ -47,6 +49,9 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
   final FirestorePokeService _pokeService = FirestorePokeService.instance;
   String _activePlate = '';
   bool _isRideActive = false;
+  String? _profileError;
+  StreamSubscription<DocumentSnapshot<Map<String, dynamic>>>?
+  _profileSubscription;
 
   // Iloilo City Proper coordinates
   static const LatLng _iloiloCenter = LatLng(10.6969, 122.5644);
@@ -64,7 +69,14 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
   @override
   void initState() {
     super.initState();
-    _loadActivePlate();
+    _watchDriverProfile();
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    _isRideActive =
+        uid != null &&
+        _busTracking.activeBuses.value.any(
+          (bus) => bus.driverId == uid && bus.isActive,
+        );
+    _busTracking.activeBuses.addListener(_syncRideState);
     _loadTrafficForecast();
   }
 
@@ -74,17 +86,38 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
     setState(() => _predictions = results);
   }
 
-  Future<void> _loadActivePlate() async {
+  void _watchDriverProfile() {
     final uid = FirebaseAuth.instance.currentUser?.uid;
     if (uid == null) return;
-    final snapshot = await FirebaseFirestore.instance
+    _profileSubscription = FirebaseFirestore.instance
         .collection('users')
         .doc(uid)
-        .get();
-    if (!mounted) return;
-    setState(() {
-      _activePlate = snapshot.data()?['activePlate'] as String? ?? '';
-    });
+        .snapshots()
+        .listen(
+          (snapshot) {
+            if (!mounted) return;
+            setState(() {
+              _activePlate = snapshot.data()?['activePlate'] as String? ?? '';
+              _profileError = null;
+            });
+          },
+          onError: (Object error) {
+            if (!mounted) return;
+            setState(() => _profileError = error.toString());
+          },
+        );
+  }
+
+  void _syncRideState() {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    final isActive =
+        uid != null &&
+        _busTracking.activeBuses.value.any(
+          (bus) => bus.driverId == uid && bus.isActive,
+        );
+    if (_isRideActive != isActive && mounted) {
+      setState(() => _isRideActive = isActive);
+    }
   }
 
   Future<void> _toggleRide() async {
@@ -111,6 +144,8 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
 
   @override
   void dispose() {
+    _profileSubscription?.cancel();
+    _busTracking.activeBuses.removeListener(_syncRideState);
     _mapController.dispose();
     super.dispose();
   }
@@ -482,6 +517,14 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
                                   'View your route and vehicle position.',
                                   style: theme.textTheme.bodySmall,
                                 ),
+                                if (_profileError != null)
+                                  Text(
+                                    'Unable to load your driver profile: '
+                                    '$_profileError',
+                                    style: theme.textTheme.bodySmall?.copyWith(
+                                      color: theme.colorScheme.error,
+                                    ),
+                                  ),
                                 const SizedBox(height: 8),
                                 ElevatedButton(
                                   onPressed: _toggleRide,

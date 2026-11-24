@@ -14,6 +14,7 @@ class ActiveBus {
     required this.position,
     required this.speedKmh,
     required this.isActive,
+    required this.startedAt,
   });
 
   final String driverId;
@@ -22,6 +23,7 @@ class ActiveBus {
   final LatLng position;
   final double speedKmh;
   final bool isActive;
+  final DateTime startedAt;
 
   ActiveBus copyWith({LatLng? position, double? speedKmh, bool? isActive}) {
     return ActiveBus(
@@ -31,8 +33,27 @@ class ActiveBus {
       position: position ?? this.position,
       speedKmh: speedKmh ?? this.speedKmh,
       isActive: isActive ?? this.isActive,
+      startedAt: startedAt,
     );
   }
+}
+
+class DriverTrip {
+  const DriverTrip({
+    required this.driverId,
+    required this.plateNumber,
+    required this.routeName,
+    required this.startedAt,
+    required this.endedAt,
+  });
+
+  final String driverId;
+  final String plateNumber;
+  final String routeName;
+  final DateTime startedAt;
+  final DateTime endedAt;
+
+  Duration get duration => endedAt.difference(startedAt);
 }
 
 class LocalBusTrackingService {
@@ -42,6 +63,8 @@ class LocalBusTrackingService {
 
   final ValueNotifier<List<ActiveBus>> activeBuses =
       ValueNotifier<List<ActiveBus>>(<ActiveBus>[]);
+  final ValueNotifier<List<DriverTrip>> completedTrips =
+      ValueNotifier<List<DriverTrip>>(<DriverTrip>[]);
 
   StreamSubscription<Position>? _positionSubscription;
   Timer? _simulationTimer;
@@ -57,7 +80,7 @@ class LocalBusTrackingService {
     required String plateNumber,
     required String routeName,
   }) async {
-    stopRide(driverId);
+    _stopRide(driverId, recordTrip: false);
 
     final initialBus = ActiveBus(
       driverId: driverId,
@@ -66,6 +89,7 @@ class LocalBusTrackingService {
       position: _waypoints.first,
       speedKmh: 20,
       isActive: true,
+      startedAt: DateTime.now(),
     );
     final buses = List<ActiveBus>.from(activeBuses.value)
       ..removeWhere((bus) => bus.driverId == driverId)
@@ -172,6 +196,7 @@ class LocalBusTrackingService {
           position: position,
           speedKmh: speedKmh,
           isActive: true,
+          startedAt: DateTime.now(),
         ),
       );
     }
@@ -179,6 +204,30 @@ class LocalBusTrackingService {
   }
 
   void stopRide(String driverId) {
+    _stopRide(driverId, recordTrip: true);
+  }
+
+  void _stopRide(String driverId, {required bool recordTrip}) {
+    ActiveBus? activeBus;
+    for (final bus in activeBuses.value) {
+      if (bus.driverId == driverId) {
+        activeBus = bus;
+        break;
+      }
+    }
+    if (recordTrip && activeBus != null) {
+      completedTrips.value = [
+        DriverTrip(
+          driverId: activeBus.driverId,
+          plateNumber: activeBus.plateNumber,
+          routeName: activeBus.routeName,
+          startedAt: activeBus.startedAt,
+          endedAt: DateTime.now(),
+        ),
+        ...completedTrips.value,
+      ];
+    }
+
     _positionSubscription?.cancel();
     _positionSubscription = null;
     _simulationTimer?.cancel();
