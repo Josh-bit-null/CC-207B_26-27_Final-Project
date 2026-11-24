@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-
 //firebase
 import 'package:firebase_core/firebase_core.dart';
 
@@ -10,12 +9,13 @@ import './app/themes/app_theme.dart';
 import './features/splash/splash_screen.dart';
 
 void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(
     options: const FirebaseOptions(
-      apiKey: "AIzaSyCIJX5WKPzb0bXQ0-3-rsIGsKavX75idps",
-      appId: "1:782818241515:web:81ec4ded641785c24707ae",
-      messagingSenderId: "782818241515",
-      projectId: "lookout-37180"
+      apiKey: "AIzaSyBTb2D0AIZHJOiGpTmBZwLuj1e2U9ddnEc",
+      appId: "1:359574670183:android:47cc0c7a32f07b0fbebdc2",
+      messagingSenderId: "359574670183",
+      projectId: "lookout-cf9df"
       )
   );
   runApp(const MyApp());
