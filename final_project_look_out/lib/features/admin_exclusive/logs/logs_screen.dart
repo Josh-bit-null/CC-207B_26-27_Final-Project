@@ -1,14 +1,17 @@
 //updated to be functional - Joshua
-
-import '../accounts/accounts_screen.dart';
-import '../feedbacks_faqs/feedback_faqs.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../../widgets/lookout_app_bar.dart';
-import '../../../widgets/lookout_drawer.dart';
+
 import 'package:flutter/material.dart';
 
 class LogsScreen extends StatelessWidget {
-  const LogsScreen({super.key});
+
+  final VoidCallback? onMenuPressed;
+
+  const LogsScreen({
+    super.key,
+    this.onMenuPressed,  
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -19,61 +22,14 @@ class LogsScreen extends StatelessWidget {
         .snapshots();
 
     return Scaffold(
-      appBar: const LookOutAppBar(title: 'Activity Logs'),
-      drawer: LookOutDrawer(
-        header: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Image.asset('assets/images/lookoutBanner.png', height: 60),
-        ),
-        items: [
-          ListTile(
-            leading: const Icon(Icons.account_box),
-            title: const Text('Accounts'),
-            onTap: () {
-              Navigator.pop(context);
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => const AccountsScreen()),
-              );
-            },
-          ),
-          ListTile(
-            leading: const Icon(Icons.feedback),
-            title: const Text('Feedback & FAQs'),
-            onTap: () {
-              Navigator.pop(context);
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const FeedbackFaqsScreen(),
-                ),
-              );
-            },
-          ),
-          ListTile(
-            leading: const Icon(Icons.history),
-            title: const Text('Logs'),
-            onTap: () {
-              Navigator.pop(context);
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => const LogsScreen()),
-              );
-            },
-          ),
-        ],
+      appBar: LookOutAppBar(
+        title: 'Activity Logs',
+        onMenuPressed: onMenuPressed,
       ),
+    
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Padding(
-            padding: const EdgeInsets.only(left: 8, top: 8),
-            child: IconButton(
-              tooltip: 'Back',
-              icon: const Icon(Icons.arrow_back),
-              onPressed: () => Navigator.of(context).maybePop(),
-            ),
-          ),
           Expanded(
             child: SingleChildScrollView(
               padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),

@@ -1,10 +1,11 @@
-import '../saved/saved_screen.dart';
 import '../../../widgets/lookout_app_bar.dart';
-import '../../../widgets/lookout_drawer.dart';
+
 import 'package:flutter/material.dart';
 
 class RidesScreen extends StatelessWidget {
-  const RidesScreen({super.key});
+  final VoidCallback? onMenuPressed;
+
+  const RidesScreen({super.key, this.onMenuPressed});
 
   @override
   Widget build(BuildContext context) {
@@ -12,54 +13,11 @@ class RidesScreen extends StatelessWidget {
     final colors = theme.colorScheme;
 
     return Scaffold(
-      appBar: const LookOutAppBar(title: 'My Rides'),
-
-      drawer: LookOutDrawer(
-        header: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Image.asset('assets/images/lookoutBanner.png', height: 60),
-        ),
-        items: [
-          ListTile(
-            leading: const Icon(Icons.emoji_transportation),
-            title: const Text('Rides'),
-            onTap: () {
-              Navigator.pop(context);
-
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => const RidesScreen()),
-              );
-            },
-          ),
-
-          ListTile(
-            leading: const Icon(Icons.save),
-            title: const Text('Saved'),
-            onTap: () {
-              Navigator.pop(context);
-
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => const SavedScreen()),
-              );
-            },
-          ),
-        ],
-      ),
+      appBar: LookOutAppBar(title: 'My Rides', onMenuPressed: onMenuPressed),
 
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Padding(
-            padding: const EdgeInsets.only(left: 8, top: 8),
-            child: IconButton(
-              tooltip: 'Back',
-              icon: const Icon(Icons.arrow_back),
-              onPressed: () => Navigator.of(context).maybePop(),
-            ),
-          ),
-
           Expanded(
             child: SingleChildScrollView(
               padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),

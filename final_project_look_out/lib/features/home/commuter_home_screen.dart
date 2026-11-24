@@ -1,12 +1,14 @@
 //added poking system ETA and real time PUV tracking - Joshua
 
 //screens
-import '../about/about_screen.dart';
-import '../analytics/analytics_screen.dart';
-import '../announcements/announcements_screen.dart';
-import '../commuter_exclusive/rides/rides_screen.dart';
-import '../commuter_exclusive/saved/saved_screen.dart';
-import '../profile/profile_screen.dart';
+import 'package:final_project_look_out/features/about/about_screen.dart';
+import 'package:final_project_look_out/features/analytics/analytics_screen.dart';
+import 'package:final_project_look_out/features/announcements/announcements_screen.dart';
+import 'package:final_project_look_out/features/commuter_exclusive/rides/rides_screen.dart';
+import 'package:final_project_look_out/features/commuter_exclusive/saved/saved_screen.dart';
+import 'package:final_project_look_out/features/landing/landing_screen.dart';
+import 'package:final_project_look_out/features/profile/profile_screen.dart';
+import 'package:final_project_look_out/services/auth_service.dart';
 
 //reusable widgets
 import '../../widgets/floating_button.dart';
@@ -170,7 +172,12 @@ class _CommuterHomeScreenState extends State<CommuterHomeScreen> {
     return Scaffold(
       // App Bar
       appBar: selectedIndex == 0
-          ? const LookOutAppBar(title: 'Commuter Dashboard')
+          ? LookOutAppBar(
+            title: 'Commuter Dashboard',
+            onMenuPressed: () {
+              _scaffoldKey.currentState?.openDrawer();
+            },
+          )
           : null,
 
       key: _scaffoldKey,
@@ -180,6 +187,23 @@ class _CommuterHomeScreenState extends State<CommuterHomeScreen> {
           child: Image.asset('assets/images/lookoutBanner.png', height: 60),
         ),
         items: [
+           ListTile(
+            leading: const Icon(Icons.person),
+            title: const Text('Profile'),
+            onTap: () {
+              Navigator.pop(context);
+
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const ProfileScreen(
+                  name: 'Commuter',
+                  email: 'commuter@lookout.ph',
+                  role: 'commuter',
+                )),
+              );
+            },
+          ),
+
           ListTile(
             leading: const Icon(Icons.emoji_transportation),
             title: const Text('Rides'),
@@ -205,6 +229,65 @@ class _CommuterHomeScreenState extends State<CommuterHomeScreen> {
               );
             },
           ),
+
+           ListTile(
+            leading: const Icon(Icons.announcement),
+            title: const Text('Announcements'),
+            onTap: () {
+              Navigator.pop(context);
+
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const AnnouncementsScreen()),
+              );
+            },
+          ),
+
+           ListTile(
+            leading: const Icon(Icons.analytics),
+            title: const Text('Analytics'),
+            onTap: () {
+              Navigator.pop(context);
+
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const AnalyticsScreen()),
+              );
+            },
+          ),
+
+           ListTile(
+            leading: const Icon(Icons.info),
+            title: const Text('About'),
+            onTap: () {
+              Navigator.pop(context);
+
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const AboutScreen()),
+              );
+            },
+          ),
+
+          ListTile(
+            leading: const Icon(Icons.logout),
+            title: const Text('Sign Out'),
+            onTap: () async {
+              Navigator.pop(context);
+
+              await AuthService().signOut();
+
+              if (context.mounted) {
+                Navigator.pushAndRemoveUntil(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const LandingScreen(),
+                  ),
+                  (route) => false,
+                );
+              }
+            },
+          ),
         ],
       ),
 
@@ -224,9 +307,14 @@ class _CommuterHomeScreenState extends State<CommuterHomeScreen> {
             label: 'Home',
           ),
           NavigationDestination(
-            icon: Icon(Icons.info_outline),
-            selectedIcon: Icon(Icons.info),
-            label: 'About',
+            icon: Icon(Icons.emoji_transportation_outlined),
+            selectedIcon: Icon(Icons.emoji_transportation),
+            label: 'Rides',
+          ),
+           NavigationDestination(
+            icon: Icon(Icons.save_outlined),
+            selectedIcon: Icon(Icons.save),
+            label: 'Saved',
           ),
           NavigationDestination(
             icon: Icon(Icons.analytics_outlined),
@@ -236,12 +324,7 @@ class _CommuterHomeScreenState extends State<CommuterHomeScreen> {
           NavigationDestination(
             icon: Icon(Icons.announcement_outlined),
             selectedIcon: Icon(Icons.announcement),
-            label: 'Announcement',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.person_outline),
-            selectedIcon: Icon(Icons.person),
-            label: 'Profile',
+            label: 'Announcements',
           ),
         ],
       ),
@@ -392,32 +475,30 @@ class _CommuterHomeScreenState extends State<CommuterHomeScreen> {
               ),
             ],
           ),
-          AboutScreen(
-            onMenuPressed: () {
-              _scaffoldKey.currentState?.openDrawer();
-            },
-          ),
-          AnalyticsScreen(
-            onMenuPressed: () {
-              _scaffoldKey.currentState?.openDrawer();
-            },
-          ),
-          AnnouncementsScreen(
-            onMenuPressed: () {
-              _scaffoldKey.currentState?.openDrawer();
-            },
-          ),
-          ProfileScreen(
-            name: 'Commuter', 
-            email: 'commuter@lookout.ph', 
-            role: 'commmuter',
-            onMenuPressed: () {
-              _scaffoldKey.currentState?.openDrawer();
-            },
-          ),
 
-        ],
-      ),
+            RidesScreen(
+              onMenuPressed: () {
+                _scaffoldKey.currentState?.openDrawer();
+              },
+            ),
+            SavedScreen(
+              onMenuPressed: () {
+                _scaffoldKey.currentState?.openDrawer();
+              },
+            ),
+            AnalyticsScreen(
+              onMenuPressed: () {
+                _scaffoldKey.currentState?.openDrawer();
+              },
+            ),
+            AnnouncementsScreen(
+               onMenuPressed: () {
+                _scaffoldKey.currentState?.openDrawer();
+              },
+            ),
+
+          ],
+        ),
       floatingActionButton: selectedIndex == 0
           ? FloatingButton(
               onPressed: () {

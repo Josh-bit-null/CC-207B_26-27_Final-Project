@@ -4,14 +4,19 @@ import 'package:flutter/material.dart';
 class AnalyticsScreen extends StatelessWidget {
   final VoidCallback? onMenuPressed;
 
-  const AnalyticsScreen({super.key, this.onMenuPressed});
+  const AnalyticsScreen({
+    super.key, 
+    this.onMenuPressed,
+  });
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
     return Scaffold(
-      appBar: LookOutAppBar(title: 'Analytics', onMenuPressed: onMenuPressed),
+      appBar: LookOutAppBar(title: 'Analytics', 
+      onMenuPressed: onMenuPressed
+      ),
 
       body: Center(
         child: Column(

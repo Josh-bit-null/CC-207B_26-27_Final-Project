@@ -8,7 +8,10 @@ class AboutScreen extends StatelessWidget {
 
   static final Future<PackageInfo> _packageInfo = PackageInfo.fromPlatform();
 
-  const AboutScreen({super.key, this.onMenuPressed});
+  const AboutScreen({
+    super.key,
+    this.onMenuPressed,
+    });
 
   static const _sections = <({IconData icon, String title, String body})>[
     (

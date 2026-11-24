@@ -1,7 +1,9 @@
 //added poking system ETA and real time PUV tracking - Joshua
 
-
 //screens
+import 'package:final_project_look_out/features/landing/landing_screen.dart';
+import 'package:final_project_look_out/services/auth_service.dart';
+
 import '../about/about_screen.dart';
 import '../analytics/analytics_screen.dart';
 import '../announcements/announcements_screen.dart';
@@ -23,6 +25,7 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+
 import '../../services/local_bus_tracking_service.dart';
 import '../../services/firestore_poke_service.dart';
 import '../../services/congestion_predictor_service.dart';
@@ -111,8 +114,7 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
     super.dispose();
   }
 
-  final GlobalKey<ScaffoldState> _scaffoldKey =
-    GlobalKey<ScaffoldState>();
+  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
 
   int selectedIndex = 0;
 
@@ -127,14 +129,33 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
           : null,
 
       key: _scaffoldKey,
-       drawer: LookOutDrawer(
+      drawer: LookOutDrawer(
         header: Padding(
           padding: const EdgeInsets.all(16),
           child: Image.asset('assets/images/lookoutBanner.png', height: 60),
         ),
         items: [
           ListTile(
-            leading: const Icon(Icons.play_circle),
+            leading: const Icon(Icons.person),
+            title: const Text('Profile'),
+            onTap: () {
+              Navigator.pop(context);
+
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const ProfileScreen(
+                    name: 'Driver',
+                    email: 'driver@lookout.ph',
+                    role: 'driver',
+                  ),
+                ),
+              );
+            },
+          ),
+
+          ListTile(
+            leading: const Icon(Icons.play_arrow),
             title: const Text('Start Ride'),
             onTap: () {
               Navigator.pop(context);
@@ -156,7 +177,9 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
 
               Navigator.push(
                 context,
-                MaterialPageRoute(builder: (context) => const TripsScreen()),
+                MaterialPageRoute(
+                  builder: (context) => const StartRideScreen(),
+                ),
               );
             },
           ),
@@ -169,13 +192,79 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
 
               Navigator.push(
                 context,
-                MaterialPageRoute(builder: (context) => const VehiclesScreen()),
+                MaterialPageRoute(
+                  builder: (context) => const StartRideScreen(),
+                ),
               );
+            },
+          ),
+
+          ListTile(
+            leading: const Icon(Icons.campaign),
+            title: const Text('Announcements'),
+            onTap: () {
+              Navigator.pop(context);
+
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const AnnouncementsScreen(),
+                ),
+              );
+            },
+          ),
+
+          ListTile(
+            leading: const Icon(Icons.analytics),
+            title: const Text('Analytics'),
+            onTap: () {
+              Navigator.pop(context);
+
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const AnalyticsScreen(),
+                ),
+              );
+            },
+          ),
+
+          ListTile(
+            leading: const Icon(Icons.info),
+            title: const Text('About'),
+            onTap: () {
+              Navigator.pop(context);
+
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const AboutScreen()),
+              );
+            },
+          ),
+
+          ListTile(
+            leading: const Icon(Icons.logout),
+            title: const Text('Sign Out'),
+            onTap: () async {
+              Navigator.pop(context);
+
+              await AuthService().signOut();
+
+              if (context.mounted) {
+                Navigator.pushAndRemoveUntil(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const LandingScreen(),
+                  ),
+                  (route) => false,
+                );
+              }
             },
           ),
         ],
       ),
 
+      // Bottom Navigation
       bottomNavigationBar: LookOutBottomNav(
         selectedIndex: selectedIndex,
         onDestinationSelected: (index) {
@@ -191,24 +280,24 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
             label: 'Home',
           ),
           NavigationDestination(
-            icon: Icon(Icons.info_outline),
-            selectedIcon: Icon(Icons.info),
-            label: 'About',
+            icon: Icon(Icons.play_arrow_outlined),
+            selectedIcon: Icon(Icons.pause),
+            label: 'Start Ride',
           ),
           NavigationDestination(
-            icon: Icon(Icons.analytics_outlined),
-            selectedIcon: Icon(Icons.analytics),
-            label: 'Analytics',
+            icon: Icon(Icons.route_outlined),
+            selectedIcon: Icon(Icons.route),
+            label: 'Trips',
           ),
           NavigationDestination(
-            icon: Icon(Icons.announcement_outlined),
-            selectedIcon: Icon(Icons.announcement),
-            label: 'Announcement',
+            icon: Icon(Icons.directions_bus_filled_outlined),
+            selectedIcon: Icon(Icons.directions_bus),
+            label: 'Vehicles',
           ),
           NavigationDestination(
-            icon: Icon(Icons.person_outline),
-            selectedIcon: Icon(Icons.person),
-            label: 'Profile',
+            icon: Icon(Icons.campaign_outlined),
+            selectedIcon: Icon(Icons.campaign),
+            label: 'Announcements',
           ),
         ],
       ),
@@ -235,7 +324,7 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
                         'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
                     userAgentPackageName: 'com.undeciders.lookout',
                   ),
-                  
+
                   if (_predictions.isNotEmpty) ...[
                     CongestionMapLayers.buildZones(_predictions),
                     CongestionMapLayers.buildPolylines(_predictions),
@@ -422,29 +511,26 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
               ),
             ],
           ),
-          AboutScreen(
-              onMenuPressed: () {
-                _scaffoldKey.currentState?.openDrawer();
-              },
-            ),
-            AnalyticsScreen(
-              onMenuPressed: () {
-                _scaffoldKey.currentState?.openDrawer();
-              },
-            ),
-            AnnouncementsScreen(
-               onMenuPressed: () {
-                _scaffoldKey.currentState?.openDrawer();
-              },
-            ),
-            ProfileScreen(
-              name: 'Commuter', 
-              email: 'commuter@lookout.ph', 
-              role: 'commmuter',
-              onMenuPressed: () {
-                _scaffoldKey.currentState?.openDrawer();
-              },
-            ),
+          StartRideScreen(
+            onMenuPressed: () {
+              _scaffoldKey.currentState?.openDrawer();
+            },
+          ),
+          TripsScreen(
+            onMenuPressed: () {
+              _scaffoldKey.currentState?.openDrawer();
+            },
+          ),
+          VehiclesScreen(
+            onMenuPressed: () {
+              _scaffoldKey.currentState?.openDrawer();
+            },
+          ),
+          AnnouncementsScreen(
+            onMenuPressed: () {
+              _scaffoldKey.currentState?.openDrawer();
+            },
+          ),
         ],
       ),
       // Floating Location Button

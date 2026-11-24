@@ -1,3 +1,9 @@
+import 'package:final_project_look_out/features/driver_exclusive/start_ride/start_ride_screen.dart';
+import 'package:final_project_look_out/features/driver_exclusive/trips/trips_screen.dart';
+import 'package:final_project_look_out/features/driver_exclusive/vehicles/vehicles_screen.dart';
+import 'package:final_project_look_out/features/landing/landing_screen.dart';
+import 'package:final_project_look_out/services/auth_service.dart';
+
 import '../about/about_screen.dart';
 import '../admin_exclusive/accounts/accounts_screen.dart';
 import '../admin_exclusive/feedbacks_faqs/feedback_faqs.dart';
@@ -8,6 +14,7 @@ import '../profile/profile_screen.dart';
 import '../../widgets/lookout_app_bar.dart';
 import '../../widgets/lookout_bottom_nav.dart';
 import '../../widgets/lookout_drawer.dart';
+
 import 'package:flutter/material.dart';
 
 class AdminHomeScreen extends StatefulWidget {
@@ -18,9 +25,7 @@ class AdminHomeScreen extends StatefulWidget {
 }
 
 class _AdminHomeScreenState extends State<AdminHomeScreen> {
-
-  final GlobalKey<ScaffoldState> _scaffoldKey =
-    GlobalKey<ScaffoldState>();
+  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
 
   int selectedIndex = 0;
 
@@ -31,39 +36,51 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
     return Scaffold(
       // App Bar
       appBar: selectedIndex == 0
-      ? const LookOutAppBar(
-        title: 'Admin Dashboard',
-      )
-      : null,
+          ? const LookOutAppBar(title: 'Admin Dashboard')
+          : null,
 
       key: _scaffoldKey,
       drawer: LookOutDrawer(
         header: Padding(
           padding: const EdgeInsets.all(16),
-          child: Image.asset(
-            'assets/images/lookoutBanner.png',
-            height: 60,
-          ),
+          child: Image.asset('assets/images/lookoutBanner.png', height: 60),
         ),
         items: [
           ListTile(
-            leading: const Icon(Icons.account_box),
-            title: const Text('Accounts'),
+            leading: const Icon(Icons.person),
+            title: const Text('Profile'),
             onTap: () {
               Navigator.pop(context);
 
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (context) => const AccountsScreen(),
+                  builder: (context) => const ProfileScreen(
+                    name: 'Commuter',
+                    email: 'commuter@lookout.ph',
+                    role: 'commuter',
+                  ),
                 ),
               );
             },
           ),
 
           ListTile(
+            leading: const Icon(Icons.account_box_sharp),
+            title: const Text('Accounts'),
+            onTap: () {
+              Navigator.pop(context);
+
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const AccountsScreen()),
+              );
+            },
+          ),
+
+          ListTile(
             leading: const Icon(Icons.feedback),
-            title: const Text('Feeback FAQs'),
+            title: const Text('Feedbacks FAQs'),
             onTap: () {
               Navigator.pop(context);
 
@@ -84,19 +101,80 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
 
               Navigator.push(
                 context,
+                MaterialPageRoute(builder: (context) => const LogsScreen()),
+              );
+            },
+          ),
+
+          ListTile(
+            leading: const Icon(Icons.campaign),
+            title: const Text('Announcement'),
+            onTap: () {
+              Navigator.pop(context);
+
+              Navigator.push(
+                context,
                 MaterialPageRoute(
-                  builder: (context) => const LogsScreen(),
+                  builder: (context) => const AnnouncementsScreen(),
                 ),
               );
+            },
+          ),
+
+          ListTile(
+            leading: const Icon(Icons.analytics),
+            title: const Text('Analytics'),
+            onTap: () {
+              Navigator.pop(context);
+
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const AnalyticsScreen(),
+                ),
+              );
+            },
+          ),
+
+          ListTile(
+            leading: const Icon(Icons.info),
+            title: const Text('About'),
+            onTap: () {
+              Navigator.pop(context);
+
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const AboutScreen()),
+              );
+            },
+          ),
+
+          ListTile(
+            leading: const Icon(Icons.logout),
+            title: const Text('Sign Out'),
+            onTap: () async {
+              Navigator.pop(context);
+
+              await AuthService().signOut();
+
+              if (context.mounted) {
+                Navigator.pushAndRemoveUntil(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const LandingScreen(),
+                  ),
+                  (route) => false,
+                );
+              }
             },
           ),
         ],
       ),
 
       // Bottom Navigation
-       bottomNavigationBar: LookOutBottomNav(
+      bottomNavigationBar: LookOutBottomNav(
         selectedIndex: selectedIndex,
-        onDestinationSelected: (index){
+        onDestinationSelected: (index) {
           setState(() {
             selectedIndex = index;
           });
@@ -105,28 +183,28 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
         destinations: const [
           NavigationDestination(
             icon: Icon(Icons.home_outlined),
-            selectedIcon: Icon(Icons.home), 
-            label: 'Home'
+            selectedIcon: Icon(Icons.home),
+            label: 'Home',
           ),
           NavigationDestination(
-            icon: Icon(Icons.info_outline),
-            selectedIcon: Icon(Icons.info), 
-            label: 'About'
+            icon: Icon(Icons.account_box_outlined),
+            selectedIcon: Icon(Icons.account_box),
+            label: 'Accounts',
           ),
           NavigationDestination(
-            icon: Icon(Icons.analytics_outlined),
-            selectedIcon: Icon(Icons.analytics), 
-            label: 'Analytics'
+            icon: Icon(Icons.feedback_outlined),
+            selectedIcon: Icon(Icons.feedback),
+            label: 'Feedbacks FAQs',
           ),
           NavigationDestination(
-            icon: Icon(Icons.announcement_outlined),
-            selectedIcon: Icon(Icons.announcement), 
-            label: 'Announcement'
+            icon: Icon(Icons.history),
+            selectedIcon: Icon(Icons.history),
+            label: 'Logs',
           ),
           NavigationDestination(
-            icon: Icon(Icons.person_outline),
-            selectedIcon: Icon(Icons.person), 
-            label: 'Profile'
+            icon: Icon(Icons.campaign_outlined),
+            selectedIcon: Icon(Icons.campaign),
+            label: 'Announcements',
           ),
         ],
       ),
@@ -141,10 +219,7 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 // Welcome Section
-                Text(
-                  'Welcome, Admin!',
-                  style: theme.textTheme.headlineMedium,
-                ),
+                Text('Welcome, Admin!', style: theme.textTheme.headlineMedium),
 
                 const SizedBox(height: 6),
 
@@ -286,31 +361,28 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
               ],
             ),
           ),
-          AboutScreen(
-              onMenuPressed: () {
-                _scaffoldKey.currentState?.openDrawer();
-              },
-            ),
-            AnalyticsScreen(
-              onMenuPressed: () {
-                _scaffoldKey.currentState?.openDrawer();
-              },
-            ),
-            AnnouncementsScreen(
-               onMenuPressed: () {
-                _scaffoldKey.currentState?.openDrawer();
-              },
-            ),
-            ProfileScreen(
-              name: 'Commuter', 
-              email: 'commuter@lookout.ph', 
-              role: 'commmuter',
-              onMenuPressed: () {
-                _scaffoldKey.currentState?.openDrawer();
-              },
-            ),
+          StartRideScreen(
+            onMenuPressed: () {
+              _scaffoldKey.currentState?.openDrawer();
+            },
+          ),
+          TripsScreen(
+            onMenuPressed: () {
+              _scaffoldKey.currentState?.openDrawer();
+            },
+          ),
+          VehiclesScreen(
+            onMenuPressed: () {
+              _scaffoldKey.currentState?.openDrawer();
+            },
+          ),
+          AnnouncementsScreen(
+            onMenuPressed: () {
+              _scaffoldKey.currentState?.openDrawer();
+            },
+          ),
         ],
-      )
+      ),
     );
   }
 
@@ -327,20 +399,12 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
       elevation: 1,
       color: theme.colorScheme.surface,
       margin: const EdgeInsets.only(bottom: 10),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(14),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
       child: ListTile(
-        contentPadding: const EdgeInsets.symmetric(
-          horizontal: 16,
-          vertical: 6,
-        ),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
         leading: CircleAvatar(
           backgroundColor: theme.colorScheme.primaryContainer,
-          child: Icon(
-            icon,
-            color: theme.colorScheme.onPrimaryContainer,
-          ),
+          child: Icon(icon, color: theme.colorScheme.onPrimaryContainer),
         ),
         title: Text(
           title,
@@ -376,19 +440,13 @@ class AdminSummaryCard extends StatelessWidget {
       child: Card(
         elevation: 1,
         color: theme.colorScheme.surface,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         child: Padding(
           padding: const EdgeInsets.all(16),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Icon(
-                icon,
-                size: 28,
-                color: theme.colorScheme.primary,
-              ),
+              Icon(icon, size: 28, color: theme.colorScheme.primary),
 
               const SizedBox(height: 14),
 
@@ -401,11 +459,7 @@ class AdminSummaryCard extends StatelessWidget {
 
               const SizedBox(height: 4),
 
-              Text(
-                title,
-                style: theme.textTheme.bodySmall,
-                maxLines: 2,
-              ),
+              Text(title, style: theme.textTheme.bodySmall, maxLines: 2),
             ],
           ),
         ),

@@ -1,11 +1,14 @@
-import '../start_ride/start_ride_screen.dart';
-import '../trips/trips_screen.dart';
 import '../../../widgets/lookout_app_bar.dart';
-import '../../../widgets/lookout_drawer.dart';
 import 'package:flutter/material.dart';
 
 class VehiclesScreen extends StatelessWidget {
-  const VehiclesScreen({super.key});
+
+  final VoidCallback? onMenuPressed;
+
+  const VehiclesScreen({
+    super.key,
+    this.onMenuPressed,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -13,44 +16,11 @@ class VehiclesScreen extends StatelessWidget {
     final colors = theme.colorScheme;
 
     return Scaffold(
-      appBar: const LookOutAppBar(title: 'My Vehicles'),
-      drawer: LookOutDrawer(
-        header: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Image.asset('assets/images/lookoutBanner.png', height: 60),
-        ),
-        items: [
-          ListTile(
-            leading: const Icon(Icons.play_circle),
-            title: const Text('Start Ride'),
-            onTap: () {
-              Navigator.pop(context);
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const StartRideScreen(),
-                ),
-              );
-            },
-          ),
-          ListTile(
-            leading: const Icon(Icons.route),
-            title: const Text('Trips'),
-            onTap: () {
-              Navigator.pop(context);
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => const TripsScreen()),
-              );
-            },
-          ),
-          ListTile(
-            leading: const Icon(Icons.directions_bus),
-            title: const Text('Vehicles'),
-            onTap: () => Navigator.pop(context),
-          ),
-        ],
+      appBar: LookOutAppBar(
+        title: 'My Vehicles',
+        onMenuPressed: onMenuPressed,
       ),
+      
       body: SingleChildScrollView(
         padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
         child: Column(

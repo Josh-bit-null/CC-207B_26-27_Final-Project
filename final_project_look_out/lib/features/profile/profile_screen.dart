@@ -4,14 +4,14 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 class ProfileScreen extends StatelessWidget {
-  final VoidCallback? onMenuPressed;
+  // final VoidCallback? onMenuPressed;
 
   const ProfileScreen({
     super.key,
     required this.name,
     required this.email,
     required this.role,
-    this.onMenuPressed,
+    // this.onMenuPressed,
   });
 
   final String name, email, role;
@@ -48,7 +48,7 @@ class ProfileScreen extends StatelessWidget {
           onPressed: () => Navigator.of(context).maybePop(),
         ),
         title: 'My Profile',
-        onMenuPressed: onMenuPressed,
+        // onMenuPressed: onMenuPressed,
       ),
 
       body: FutureBuilder<Map<String, dynamic>?>(
