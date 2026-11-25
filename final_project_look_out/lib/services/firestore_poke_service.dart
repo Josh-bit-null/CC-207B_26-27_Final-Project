@@ -74,7 +74,9 @@ class FirestorePokeService {
         .where('toPlate', isEqualTo: activePlate)
         .snapshots()
         .map((snapshot) {
-          final pokes = snapshot.docs.toList();
+          final pokes = snapshot.docs
+              .where((poke) => poke.data()['recordType'] != 'ride')
+              .toList();
           pokes.sort((a, b) {
             final aTime = a.data()['createdAt'];
             final bTime = b.data()['createdAt'];
@@ -119,7 +121,9 @@ class FirestorePokeService {
         .get();
     final batch = _firestore.batch();
     for (final poke in snapshot.docs) {
-      batch.delete(poke.reference);
+      if (poke.data()['recordType'] != 'ride') {
+        batch.delete(poke.reference);
+      }
     }
     batch.set(_firestore.collection('poke_counts').doc(activePlate), {
       'count': 0,
