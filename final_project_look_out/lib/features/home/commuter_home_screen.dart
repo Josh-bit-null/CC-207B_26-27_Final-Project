@@ -512,6 +512,7 @@ class _CommuterHomeScreenState extends State<CommuterHomeScreen> {
         ),
       floatingActionButton: selectedIndex == 0
           ? FloatingButton(
+              heroTag: 'commuter-home-location',
               onPressed: () {
                 _mapController.move(_iloiloCenter, 15.0);
               },

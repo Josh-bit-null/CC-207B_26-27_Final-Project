@@ -591,6 +591,7 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
       // Floating Location Button
       floatingActionButton: selectedIndex == 0
           ? FloatingButton(
+              heroTag: 'driver-home-location',
               onPressed: () {
                 _mapController.move(_iloiloCenter, 15.0);
               },
