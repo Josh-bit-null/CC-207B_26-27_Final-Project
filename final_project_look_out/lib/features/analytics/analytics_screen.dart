@@ -1,16 +1,23 @@
-import '../../widgets/lookout_app_bar.dart';
-import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/material.dart';
 
+import '../../widgets/lookout_app_bar.dart';
 
 class AnalyticsScreen extends StatelessWidget {
   final VoidCallback? onMenuPressed;
 
-  const AnalyticsScreen({
-    super.key, 
-    this.onMenuPressed,
-  });
+  const AnalyticsScreen({super.key, this.onMenuPressed});
+
+  static const _weekdayLabels = [
+    'Mon',
+    'Tue',
+    'Wed',
+    'Thu',
+    'Fri',
+    'Sat',
+    'Sun',
+  ];
 
   @override
   Widget build(BuildContext context) {
@@ -22,8 +29,8 @@ class AnalyticsScreen extends StatelessWidget {
           ? const Center(child: Text('Sign in to view your ride analytics.'))
           : StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
               stream: FirebaseFirestore.instance
-                  .collection('pokes')
-                  .where('fromUid', isEqualTo: uid)
+                  .collection('rides')
+                  .where('commuterUid', isEqualTo: uid)
                   .snapshots(),
               builder: (context, snapshot) {
                 if (snapshot.hasError) {
@@ -31,7 +38,7 @@ class AnalyticsScreen extends StatelessWidget {
                     child: Padding(
                       padding: const EdgeInsets.all(24),
                       child: Text(
-                        'Unable to load analytics: ${snapshot.error}',
+                        'Unable to load ride analytics: ${snapshot.error}',
                         textAlign: TextAlign.center,
                       ),
                     ),
@@ -41,54 +48,55 @@ class AnalyticsScreen extends StatelessWidget {
                   return const Center(child: CircularProgressIndicator());
                 }
 
-                final records = snapshot.data?.docs ?? [];
-                final routeCounts = <String, int>{};
-                final plateCounts = <String, int>{};
-                final today = DateTime.now();
-                final todayDate = DateTime(today.year, today.month, today.day);
-                final dailyCounts = List<int>.filled(7, 0);
+                final rides = snapshot.data?.docs ?? [];
+                final totalSecondsByWeekday = List<double>.filled(7, 0);
+                final rideCountsByWeekday = List<int>.filled(7, 0);
+                var totalDurationSeconds = 0.0;
+                var ridesWithDuration = 0;
 
-                for (final record in records) {
-                  final data = record.data();
-                  final route = (data['routeId'] as String?)?.trim();
-                  final plate = (data['toPlate'] as String?)?.trim();
-                  if (route != null && route.isNotEmpty) {
-                    routeCounts.update(
-                      route,
-                      (currentCount) => currentCount + 1,
-                      ifAbsent: () => 1,
-                    );
-                  }
-                  if (plate != null && plate.isNotEmpty) {
-                    plateCounts.update(
-                      plate.toUpperCase(),
-                      (currentCount) => currentCount + 1,
-                      ifAbsent: () => 1,
-                    );
+                for (final ride in rides) {
+                  final data = ride.data();
+                  final startedAt = data['startedAt'];
+                  final durationSeconds = _durationSeconds(data);
+                  if (startedAt is! Timestamp ||
+                      durationSeconds == null ||
+                      durationSeconds <= 0) {
+                    continue;
                   }
 
-                  final createdAt = data['createdAt'];
-                  if (createdAt is Timestamp) {
-                    final created = createdAt.toDate().toLocal();
-                    final createdDate = DateTime(
-                      created.year,
-                      created.month,
-                      created.day,
-                    );
-                    final daysAgo = todayDate.difference(createdDate).inDays;
-                    if (daysAgo >= 0 && daysAgo < dailyCounts.length) {
-                      dailyCounts[dailyCounts.length - 1 - daysAgo]++;
-                    }
-                  }
+                  final weekday = startedAt.toDate().toLocal().weekday - 1;
+                  totalSecondsByWeekday[weekday] += durationSeconds;
+                  rideCountsByWeekday[weekday]++;
+                  totalDurationSeconds += durationSeconds;
+                  ridesWithDuration++;
                 }
 
-                final topRoute = _mostFrequent(routeCounts);
-                final days = List.generate(7, (index) {
-                  final date = todayDate.subtract(
-                    Duration(days: dailyCounts.length - index - 1),
-                  );
-                  return _DailyActivity(date: date, count: dailyCounts[index]);
-                });
+                final weekdayStats = List.generate(
+                  _weekdayLabels.length,
+                  (index) => _WeekdayRideStats(
+                    label: _weekdayLabels[index],
+                    averageMinutes: rideCountsByWeekday[index] == 0
+                        ? 0
+                        : totalSecondsByWeekday[index] /
+                              rideCountsByWeekday[index] /
+                              60,
+                    rideCount: rideCountsByWeekday[index],
+                  ),
+                );
+                final weekdaysWithRides = weekdayStats
+                    .where((day) => day.rideCount > 0)
+                    .toList();
+                final slowestWeekday = weekdaysWithRides.isEmpty
+                    ? null
+                    : weekdaysWithRides.reduce(
+                        (first, second) =>
+                            first.averageMinutes >= second.averageMinutes
+                            ? first
+                            : second,
+                      );
+                final overallAverageMinutes = ridesWithDuration == 0
+                    ? null
+                    : totalDurationSeconds / ridesWithDuration / 60;
 
                 return ListView(
                   padding: const EdgeInsets.all(20),
@@ -100,7 +108,9 @@ class AnalyticsScreen extends StatelessWidget {
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      'A personal summary of the rides and pokes you have logged.',
+                      'Compare your average ride duration by weekday. Longer '
+                      'rides may indicate heavier traffic; this is based on '
+                      'your past rides, not live traffic data.',
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                         color: Theme.of(context).colorScheme.onSurfaceVariant,
                       ),
@@ -115,45 +125,273 @@ class AnalyticsScreen extends StatelessWidget {
                       physics: const NeverScrollableScrollPhysics(),
                       children: [
                         _MetricCard(
-                          title: 'Ride records',
-                          value: records.length.toString(),
-                          icon: Icons.receipt_long_outlined,
-                        ),
-                        _MetricCard(
-                          title: 'Routes tracked',
-                          value: routeCounts.length.toString(),
+                          title: 'Rides recorded',
+                          value: rides.length.toString(),
                           icon: Icons.route_outlined,
                         ),
                         _MetricCard(
-                          title: 'Vehicles recorded',
-                          value: plateCounts.length.toString(),
-                          icon: Icons.directions_bus_outlined,
+                          title: 'Average ride duration',
+                          value: _formatDuration(overallAverageMinutes),
+                          icon: Icons.schedule_outlined,
                         ),
                         _MetricCard(
-                          title: 'Most logged route',
-                          value: topRoute,
+                          title: 'Longest average weekday',
+                          value: slowestWeekday?.label ?? '—',
                           icon: Icons.trending_up,
+                        ),
+                        _MetricCard(
+                          title: 'Weekday with data',
+                          value: weekdaysWithRides.length.toString(),
+                          icon: Icons.calendar_today_outlined,
                         ),
                       ],
                     ),
                     const SizedBox(height: 20),
-                    _ActivityCard(days: days, hasRecords: records.isNotEmpty),
-                    const SizedBox(height: 20),
-                    if (plateCounts.isNotEmpty)
-                      _TopVehicleCard(plateCounts: plateCounts),
+                    _RideDurationChart(days: weekdayStats),
                   ],
                 );
               },
             ),
     );
   }
+}
 
-  String _mostFrequent(Map<String, int> counts) {
-    if (counts.isEmpty) return '—';
-    return counts.entries
-        .reduce((first, second) => first.value >= second.value ? first : second)
-        .key;
+double? _durationSeconds(Map<String, dynamic> ride) {
+  final storedDuration = ride['durationSeconds'];
+  if (storedDuration is num && storedDuration.isFinite && storedDuration >= 0) {
+    return storedDuration.toDouble();
   }
+
+  final startedAt = ride['startedAt'];
+  final endedAt = ride['endedAt'];
+  if (startedAt is Timestamp && endedAt is Timestamp) {
+    final duration = endedAt.toDate().difference(startedAt.toDate()).inSeconds;
+    return duration >= 0 ? duration.toDouble() : null;
+  }
+  return null;
+}
+
+String _formatDuration(double? minutes) {
+  if (minutes == null) return '—';
+  if (minutes >= 60) return '${(minutes / 60).toStringAsFixed(1)} hr';
+  return '${minutes.toStringAsFixed(1)} min';
+}
+
+class _WeekdayRideStats {
+  const _WeekdayRideStats({
+    required this.label,
+    required this.averageMinutes,
+    required this.rideCount,
+  });
+
+  final String label;
+  final double averageMinutes;
+  final int rideCount;
+}
+
+class _RideDurationChart extends StatelessWidget {
+  const _RideDurationChart({required this.days});
+
+  final List<_WeekdayRideStats> days;
+
+  double get _axisMaximum {
+    final maxMinutes = days.fold<double>(
+      0,
+      (maximum, day) =>
+          day.averageMinutes > maximum ? day.averageMinutes : maximum,
+    );
+    if (maxMinutes <= 0) return 10;
+
+    final step = maxMinutes <= 10
+        ? 2
+        : maxMinutes <= 30
+        ? 5
+        : maxMinutes <= 60
+        ? 10
+        : 30;
+    return (maxMinutes / step).ceilToDouble() * step;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
+    final axisMaximum = _axisMaximum;
+    final midpoint = (axisMaximum / 2).round();
+    final hasRideData = days.any((day) => day.rideCount > 0);
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Average ride duration by weekday',
+              style: textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'Duration (minutes)',
+              style: textTheme.bodySmall?.copyWith(
+                color: colors.onSurfaceVariant,
+              ),
+            ),
+            const SizedBox(height: 16),
+            SizedBox(
+              height: 190,
+              child: Column(
+                children: [
+                  Expanded(
+                    child: Row(
+                      children: [
+                        SizedBox(
+                          width: 36,
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            crossAxisAlignment: CrossAxisAlignment.end,
+                            children: [
+                              Text(
+                                axisMaximum.round().toString(),
+                                style: textTheme.labelSmall,
+                              ),
+                              Text(
+                                midpoint.toString(),
+                                style: textTheme.labelSmall,
+                              ),
+                              Text('0', style: textTheme.labelSmall),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: LayoutBuilder(
+                            builder: (context, constraints) {
+                              return Stack(
+                                fit: StackFit.expand,
+                                children: [
+                                  CustomPaint(
+                                    painter: _DurationGridPainter(
+                                      color: colors.outlineVariant,
+                                    ),
+                                  ),
+                                  Row(
+                                    crossAxisAlignment: CrossAxisAlignment.end,
+                                    children: [
+                                      for (final day in days)
+                                        Expanded(
+                                          child: Padding(
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 5,
+                                            ),
+                                            child: Tooltip(
+                                              message: day.rideCount == 0
+                                                  ? '${day.label}: no ride data'
+                                                  : '${day.label}: '
+                                                        '${day.averageMinutes.toStringAsFixed(1)} min average '
+                                                        '(${day.rideCount} rides)',
+                                              child: Align(
+                                                alignment:
+                                                    Alignment.bottomCenter,
+                                                child: Container(
+                                                  width: 18,
+                                                  height: day.rideCount == 0
+                                                      ? 0
+                                                      : (constraints.maxHeight *
+                                                                day.averageMinutes /
+                                                                axisMaximum)
+                                                            .clamp(
+                                                              0.0,
+                                                              constraints
+                                                                  .maxHeight,
+                                                            )
+                                                            .toDouble(),
+                                                  decoration: BoxDecoration(
+                                                    color: colors.primary,
+                                                    borderRadius:
+                                                        const BorderRadius.vertical(
+                                                          top: Radius.circular(
+                                                            4,
+                                                          ),
+                                                        ),
+                                                  ),
+                                                ),
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                    ],
+                                  ),
+                                ],
+                              );
+                            },
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      const SizedBox(width: 44),
+                      for (final day in days)
+                        Expanded(
+                          child: Column(
+                            children: [
+                              Text(day.label, style: textTheme.labelSmall),
+                              Text(
+                                day.rideCount == 0
+                                    ? '—'
+                                    : '${day.averageMinutes.round()}m',
+                                style: textTheme.labelSmall?.copyWith(
+                                  color: colors.onSurfaceVariant,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            if (!hasRideData) ...[
+              const SizedBox(height: 12),
+              Text(
+                'Completed rides with a start time and duration will appear here.',
+                style: textTheme.bodySmall?.copyWith(
+                  color: colors.onSurfaceVariant,
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _DurationGridPainter extends CustomPainter {
+  const _DurationGridPainter({required this.color});
+
+  final Color color;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = color
+      ..strokeWidth = 1;
+    for (var index = 0; index < 3; index++) {
+      final y = size.height * index / 2;
+      canvas.drawLine(Offset(0, y), Offset(size.width, y), paint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(_DurationGridPainter oldDelegate) =>
+      color != oldDelegate.color;
 }
 
 class _MetricCard extends StatelessWidget {
@@ -190,7 +428,7 @@ class _MetricCard extends StatelessWidget {
             ),
             Text(
               title,
-              maxLines: 1,
+              maxLines: 2,
               overflow: TextOverflow.ellipsis,
               style: textTheme.bodySmall?.copyWith(
                 color: colors.onSurfaceVariant,
@@ -198,117 +436,6 @@ class _MetricCard extends StatelessWidget {
             ),
           ],
         ),
-      ),
-    );
-  }
-}
-
-class _DailyActivity {
-  const _DailyActivity({required this.date, required this.count});
-
-  final DateTime date;
-  final int count;
-}
-
-class _ActivityCard extends StatelessWidget {
-  const _ActivityCard({required this.days, required this.hasRecords});
-
-  final List<_DailyActivity> days;
-  final bool hasRecords;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = Theme.of(context).colorScheme;
-    final maxCount = days.fold<int>(
-      0,
-      (maximum, day) => day.count > maximum ? day.count : maximum,
-    );
-    const weekdayLabels = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
-
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Activity · last 7 days',
-              style: Theme.of(context).textTheme.titleMedium
-                  ?.copyWith(fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 16),
-            SizedBox(
-              height: 118,
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  for (final day in days)
-                    Expanded(
-                      child: Column(
-                        children: [
-                          Text(
-                            day.count.toString(),
-                            style: Theme.of(context).textTheme.labelSmall,
-                          ),
-                          const Spacer(),
-                          Container(
-                            width: 20,
-                            height: day.count == 0
-                                ? 4
-                                : 72 * day.count / maxCount,
-                            decoration: BoxDecoration(
-                              color: day.count == 0
-                                  ? colors.surfaceContainerHighest
-                                  : colors.primary,
-                              borderRadius: BorderRadius.circular(4),
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            weekdayLabels[day.date.weekday - 1],
-                            style: Theme.of(context).textTheme.labelSmall,
-                          ),
-                        ],
-                      ),
-                    ),
-                ],
-              ),
-            ),
-            if (!hasRecords) ...[
-              const SizedBox(height: 8),
-              Text(
-                'Your activity will appear here after you log a ride.',
-                style: Theme.of(context).textTheme.bodySmall
-                    ?.copyWith(color: colors.onSurfaceVariant),
-              ),
-            ],
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _TopVehicleCard extends StatelessWidget {
-  const _TopVehicleCard({required this.plateCounts});
-
-  final Map<String, int> plateCounts;
-
-  @override
-  Widget build(BuildContext context) {
-    final topVehicle = plateCounts.entries.reduce(
-      (first, second) => first.value >= second.value ? first : second,
-    );
-
-    return Card(
-      child: ListTile(
-        leading: Icon(
-          Icons.directions_bus,
-          color: Theme.of(context).colorScheme.primary,
-        ),
-        title: const Text('Most logged vehicle'),
-        subtitle: Text(topVehicle.key),
-        trailing: Text('${topVehicle.value}'),
       ),
     );
   }
