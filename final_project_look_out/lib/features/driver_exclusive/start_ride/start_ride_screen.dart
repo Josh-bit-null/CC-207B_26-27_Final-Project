@@ -27,6 +27,7 @@ class _StartRideScreenState extends State<StartRideScreen> {
   final _pokeService = FirestorePokeService.instance;
   String _selectedRouteId = _routes.keys.first;
   String _selectedPlate = '';
+  TimeOfDay? _selectedDepartureTime;
   bool _isBusy = false;
 
   String? get _uid => FirebaseAuth.instance.currentUser?.uid;
@@ -55,6 +56,22 @@ class _StartRideScreenState extends State<StartRideScreen> {
     if (mounted) setState(() {});
   }
 
+  Future<void> _selectDepartureTime() async {
+    final selected = await showTimePicker(
+      context: context,
+      initialTime: _selectedDepartureTime ?? TimeOfDay.now(),
+    );
+    if (selected != null && mounted) {
+      setState(() => _selectedDepartureTime = selected);
+    }
+  }
+
+  DateTime _departureDateTime() {
+    final now = DateTime.now();
+    final time = _selectedDepartureTime ?? TimeOfDay.fromDateTime(now);
+    return DateTime(now.year, now.month, now.day, time.hour, time.minute);
+  }
+
   Future<void> _toggleRide({required String uid, required String plate}) async {
     if (_isBusy) return;
     setState(() => _isBusy = true);
@@ -73,6 +90,7 @@ class _StartRideScreenState extends State<StartRideScreen> {
 
       await FirebaseFirestore.instance.collection('users').doc(uid).update({
         'activePlate': plate,
+        'departureTime': Timestamp.fromDate(_departureDateTime()),
         'updatedAt': FieldValue.serverTimestamp(),
       });
 
@@ -149,6 +167,29 @@ class _StartRideScreenState extends State<StartRideScreen> {
           ),
         ),
         const SizedBox(height: 20),
+        ListTile(
+          leading: const Icon(Icons.access_time),
+          title: const Text('Departure time'),
+          subtitle: Text(
+            _selectedDepartureTime?.format(context) ??
+                'Automatic: current time',
+          ),
+          trailing: Wrap(
+            spacing: 4,
+            children: [
+              TextButton(
+                onPressed: _isBusy ? null : _selectDepartureTime,
+                child: const Text('Choose'),
+              ),
+              TextButton(
+                onPressed: _isBusy
+                    ? null
+                    : () => setState(() => _selectedDepartureTime = null),
+                child: const Text('Auto'),
+              ),
+            ],
+          ),
+        ),
         Card(
           child: Padding(
             padding: const EdgeInsets.all(16),
