@@ -1,3 +1,5 @@
+import 'package:final_project_look_out/widgets/loader.dart';
+
 import '../../../widgets/floating_button.dart';
 import '../../../widgets/lookout_app_bar.dart';
 
@@ -406,7 +408,7 @@ class _SavedScreenState extends State<SavedScreen> {
                         );
                       }
                       if (snapshot.connectionState == ConnectionState.waiting) {
-                        return const Center(child: CircularProgressIndicator());
+                        return const Loader.circular();
                       }
 
                       final places = _savedPlacesFrom(

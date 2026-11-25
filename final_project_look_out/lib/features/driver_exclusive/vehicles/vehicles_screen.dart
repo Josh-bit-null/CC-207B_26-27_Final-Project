@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:final_project_look_out/widgets/loader.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
@@ -252,7 +253,7 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
                   );
                 }
                 if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(child: CircularProgressIndicator());
+                  return const Loader.circular();
                 }
                 if (!snapshot.hasData || !snapshot.data!.exists) {
                   return const Center(child: Text('Driver profile not found.'));

@@ -12,10 +12,18 @@ class PopupNotif {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         behavior: SnackBarBehavior.floating,
+        dismissDirection: DismissDirection.up,
         backgroundColor: theme.colorScheme.inverseSurface,
         elevation: 4,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        margin: const EdgeInsets.all(16),
+        margin: EdgeInsets.only(
+         bottom:
+              MediaQuery.of(context).size.height -
+              MediaQuery.of(context).padding.top -
+              70,
+          left: 16,
+          right: 16,
+        ),
         content: Text(
           '$title: $message',
           style: TextStyle(

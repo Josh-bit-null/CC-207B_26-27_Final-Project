@@ -1,3 +1,5 @@
+import 'package:final_project_look_out/widgets/loader.dart';
+
 import '../../widgets/lookout_app_bar.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -55,7 +57,7 @@ class ProfileScreen extends StatelessWidget {
         future: _loadUserData(),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
+            return const Loader.circular();
           }
 
           if (snapshot.hasError) {

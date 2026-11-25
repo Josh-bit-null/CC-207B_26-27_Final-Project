@@ -1,3 +1,5 @@
+import 'package:final_project_look_out/widgets/loader.dart';
+
 import '../../../services/admin_account_service.dart';
 import '../../../services/admin_log_service.dart';
 import '../../../widgets/lookout_app_bar.dart';
@@ -144,7 +146,7 @@ class _AccountsScreenState extends State<AccountsScreen> {
                         );
                       }
                       if (!snapshot.hasData) {
-                        return const Center(child: CircularProgressIndicator());
+                        return const Loader.circular();
                       }
 
                       final accounts = snapshot.data!.docs.toList()
@@ -737,6 +739,7 @@ Future<void> _deleteAccount(
         ),
       ],
     ),
+    
   );
   if (confirmed != true || !context.mounted) return;
 

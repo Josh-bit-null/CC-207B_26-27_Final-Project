@@ -1,4 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:final_project_look_out/widgets/loader.dart';
+import 'package:final_project_look_out/widgets/popup_notif.dart';
 import 'package:flutter/material.dart';
 
 import '../../services/auth_service.dart';
@@ -150,24 +152,26 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
 
           ListTile(
             leading: const Icon(Icons.logout),
-            title: const Text('Sign Out'),
+            title: const Text('Log Out'),
             onTap: () async {
               final confirmed = await showDialog<bool>(
                 context: context,
                 builder: (context) => const ConfirmationDialog(
-                  title: 'Sign Out',
-                  message: 'Are you sure you want to sign out?',
-                  confirmText: 'Sign Out',
+                  title: 'Log Out',
+                  message: 'Are you sure you want to log out?',
+                  confirmText: 'Log Out',
                 ),
               );
 
               if (confirmed != true || !context.mounted) return;
 
-              Navigator.pop(context);
+              Navigator.pop(context); // Close drawer
 
-              await AuthService().signOut();
+              try {
+                await AuthService().signOut();
 
-              if (context.mounted) {
+                if (!context.mounted) return;
+
                 Navigator.pushAndRemoveUntil(
                   context,
                   MaterialPageRoute(
@@ -175,6 +179,19 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
                   ),
                   (route) => false,
                 );
+
+                // Show success notification on LandingScreen
+                PopupNotif(
+                  title: 'Success',
+                  message: 'You have successfully logged out.',
+                ).show(context);
+              } catch (e) {
+                if (!context.mounted) return;
+
+                PopupNotif(
+                  title: 'Error',
+                  message: 'Failed to log out. Please try again.',
+                ).show(context);
               }
             },
           ),
@@ -261,7 +278,7 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
                       );
                     }
                     if (!snapshot.hasData) {
-                      return const Center(child: CircularProgressIndicator());
+                      return const Loader.circular();
                     }
 
                     var driverCount = 0;
@@ -393,7 +410,7 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
                       );
                     }
                     if (!snapshot.hasData) {
-                      return const Center(child: CircularProgressIndicator());
+                      return const Loader.circular();
                     }
                     if (snapshot.data!.docs.isEmpty) {
                       return const Card(

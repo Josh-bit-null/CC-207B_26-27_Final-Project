@@ -1,5 +1,6 @@
 //updated to be functional - Joshua
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:final_project_look_out/widgets/loader.dart';
 import '../../../widgets/lookout_app_bar.dart';
 
 import 'package:flutter/material.dart';
@@ -59,7 +60,7 @@ class LogsScreen extends StatelessWidget {
                         );
                       }
                       if (!snapshot.hasData) {
-                        return const Center(child: CircularProgressIndicator());
+                        return const Loader.circular();
                       }
 
                       final entries = snapshot.data!.docs.toList()

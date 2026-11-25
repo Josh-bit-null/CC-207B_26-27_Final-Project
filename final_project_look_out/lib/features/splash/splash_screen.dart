@@ -1,3 +1,4 @@
+import 'package:final_project_look_out/widgets/loader.dart';
 import 'package:flutter/material.dart';
 import '../landing/landing_screen.dart';
 
@@ -141,9 +142,10 @@ class _SplashScreenState extends State<SplashScreen>
                     SizedBox(
                       width: 24,
                       height: 24,
-                      child: CircularProgressIndicator(
+                      child: Loader.circular(
                         strokeWidth: 2.5,
                         color: colors.primary,
+                        showText: false,
                       ),
                     ),
 

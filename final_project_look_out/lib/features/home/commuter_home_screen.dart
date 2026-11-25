@@ -10,6 +10,7 @@ import 'package:final_project_look_out/features/landing/landing_screen.dart';
 import 'package:final_project_look_out/features/profile/profile_screen.dart';
 import 'package:final_project_look_out/services/auth_service.dart';
 import 'package:final_project_look_out/widgets/confirmation_dialog.dart';
+import 'package:final_project_look_out/widgets/popup_notif.dart';
 
 //reusable widgets
 import '../../widgets/floating_button.dart';
@@ -340,11 +341,13 @@ class _CommuterHomeScreenState extends State<CommuterHomeScreen> {
 
               if (confirmed != true || !context.mounted) return;
 
-              Navigator.pop(context);
+              Navigator.pop(context); // Close drawer
 
-              await AuthService().signOut();
+              try {
+                await AuthService().signOut();
 
-              if (context.mounted) {
+                if (!context.mounted) return;
+
                 Navigator.pushAndRemoveUntil(
                   context,
                   MaterialPageRoute(
@@ -352,6 +355,19 @@ class _CommuterHomeScreenState extends State<CommuterHomeScreen> {
                   ),
                   (route) => false,
                 );
+
+                // Show success notification on LandingScreen
+                PopupNotif(
+                  title: 'Success',
+                  message: 'You have successfully logged out.',
+                ).show(context);
+              } catch (e) {
+                if (!context.mounted) return;
+
+                PopupNotif(
+                  title: 'Error',
+                  message: 'Failed to log out. Please try again.',
+                ).show(context);
               }
             },
           ),
@@ -368,6 +384,7 @@ class _CommuterHomeScreenState extends State<CommuterHomeScreen> {
         },
 
         destinations: const [
+
           NavigationDestination(
             icon: Icon(Icons.home_outlined),
             selectedIcon: Icon(Icons.home),
@@ -389,8 +406,8 @@ class _CommuterHomeScreenState extends State<CommuterHomeScreen> {
             label: 'Analytics',
           ),
           NavigationDestination(
-            icon: Icon(Icons.announcement_outlined),
-            selectedIcon: Icon(Icons.announcement),
+            icon: Icon(Icons.campaign_outlined),
+            selectedIcon: Icon(Icons.campaign),
             label: 'Announcements',
           ),
         ],

@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:final_project_look_out/widgets/loader.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
@@ -253,7 +254,10 @@ class _StartRideScreenState extends State<StartRideScreen> {
                         ? const SizedBox(
                             width: 18,
                             height: 18,
-                            child: CircularProgressIndicator(strokeWidth: 2),
+                            child: Loader.circular(
+                              strokeWidth: 2,
+                              showText: false,
+                            ),
                           )
                         : Icon(_isRideActive ? Icons.stop : Icons.play_arrow),
                     label: Text(_isRideActive ? 'End Ride' : 'Start Ride'),
@@ -293,7 +297,7 @@ class _StartRideScreenState extends State<StartRideScreen> {
                 return Text('Unable to load requests: ${snapshot.error}');
               }
               if (snapshot.connectionState == ConnectionState.waiting) {
-                return const Center(child: CircularProgressIndicator());
+                return const Loader.circular();
               }
 
               final requests = snapshot.data ?? const [];
@@ -364,7 +368,7 @@ class _StartRideScreenState extends State<StartRideScreen> {
                   );
                 }
                 if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(child: CircularProgressIndicator());
+                  return const Loader.circular();
                 }
                 if (!snapshot.hasData || !snapshot.data!.exists) {
                   return const Center(child: Text('Driver profile not found.'));

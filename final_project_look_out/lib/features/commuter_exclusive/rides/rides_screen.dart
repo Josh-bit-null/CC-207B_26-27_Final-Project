@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:final_project_look_out/widgets/loader.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
@@ -569,7 +570,7 @@ class _RidesScreenState extends State<RidesScreen> {
                         );
                       }
                       if (snapshot.connectionState == ConnectionState.waiting) {
-                        return const Center(child: CircularProgressIndicator());
+                        return const Loader.circular();
                       }
 
                       final favoriteIds = _recordsFrom(
@@ -593,9 +594,7 @@ class _RidesScreenState extends State<RidesScreen> {
                           }
                           if (ridesSnapshot.connectionState ==
                               ConnectionState.waiting) {
-                            return const Center(
-                              child: CircularProgressIndicator(),
-                            );
+                            return const Loader.circular();
                           }
 
                           final rides =

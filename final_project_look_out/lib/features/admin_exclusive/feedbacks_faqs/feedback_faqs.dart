@@ -1,5 +1,7 @@
 //updated to be functional - Joshua
 
+import 'package:final_project_look_out/widgets/loader.dart';
+
 import '../../../services/admin_log_service.dart';
 import '../../../widgets/lookout_app_bar.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -61,7 +63,7 @@ class FeedbackFaqsScreen extends StatelessWidget {
                         );
                       }
                       if (!snapshot.hasData) {
-                        return const Center(child: CircularProgressIndicator());
+                        return const Loader.circular();
                       }
 
                       final entries = snapshot.data!.docs;
