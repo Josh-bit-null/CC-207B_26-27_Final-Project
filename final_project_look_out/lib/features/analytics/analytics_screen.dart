@@ -120,7 +120,7 @@ class AnalyticsScreen extends StatelessWidget {
                       crossAxisCount: 2,
                       crossAxisSpacing: 12,
                       mainAxisSpacing: 12,
-                      childAspectRatio: 1.65,
+                      childAspectRatio: 3.5,
                       shrinkWrap: true,
                       physics: const NeverScrollableScrollPhysics(),
                       children: [
@@ -140,7 +140,7 @@ class AnalyticsScreen extends StatelessWidget {
                           icon: Icons.trending_up,
                         ),
                         _MetricCard(
-                          title: 'Weekday with data',
+                          title: 'Days with recorded rides',
                           value: weekdaysWithRides.length.toString(),
                           icon: Icons.calendar_today_outlined,
                         ),
