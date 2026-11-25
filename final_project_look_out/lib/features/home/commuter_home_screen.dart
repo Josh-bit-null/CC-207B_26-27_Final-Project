@@ -40,9 +40,12 @@ class CommuterHomeScreen extends StatefulWidget {
 }
 
 class _CommuterHomeScreenState extends State<CommuterHomeScreen> {
+  static const String _allRoutes = '__all_routes__';
+
   final MapController _mapController = MapController();
   final LocalBusTrackingService _busTracking = LocalBusTrackingService.instance;
   final FirestorePokeService _pokeService = FirestorePokeService.instance;
+  String _selectedRoute = _allRoutes;
 
   // Iloilo City Proper coordinates
   static const LatLng _iloiloCenter = LatLng(10.6969, 122.5644);
@@ -56,6 +59,58 @@ class _CommuterHomeScreenState extends State<CommuterHomeScreen> {
     LatLng(10.7120, 122.5605),
     LatLng(10.6969, 122.5644),
   ];
+
+  List<String> _routesFrom(List<ActiveBus> buses) {
+    final routes = buses
+        .where((bus) => bus.isActive)
+        .map((bus) => bus.routeName.trim())
+        .where((route) => route.isNotEmpty)
+        .toSet()
+        .toList()
+      ..sort();
+    if (_selectedRoute != _allRoutes && !routes.contains(_selectedRoute)) {
+      routes.add(_selectedRoute);
+      routes.sort();
+    }
+    return routes;
+  }
+
+  Future<void> _showRouteFilter() async {
+    final routes = _routesFrom(_busTracking.activeBuses.value);
+    final selectedRoute = await showModalBottomSheet<String>(
+      context: context,
+      builder: (sheetContext) => SafeArea(
+        child: ListView(
+          shrinkWrap: true,
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          children: [
+            const ListTile(title: Text('Select route')),
+            ListTile(
+              leading: Icon(
+                _selectedRoute == _allRoutes
+                    ? Icons.radio_button_checked
+                    : Icons.radio_button_unchecked,
+              ),
+              title: const Text('All routes'),
+              onTap: () => Navigator.pop(sheetContext, _allRoutes),
+            ),
+            for (final route in routes)
+              ListTile(
+                leading: Icon(
+                  _selectedRoute == route
+                      ? Icons.radio_button_checked
+                      : Icons.radio_button_unchecked,
+                ),
+                title: Text(route),
+                onTap: () => Navigator.pop(sheetContext, route),
+              ),
+          ],
+        ),
+      ),
+    );
+    if (!mounted || selectedRoute == null) return;
+    setState(() => _selectedRoute = selectedRoute);
+  }
 
   @override
   void initState() {
@@ -402,7 +457,12 @@ class _CommuterHomeScreenState extends State<CommuterHomeScreen> {
                     builder: (context, buses, child) {
                       return MarkerLayer(
                         markers: buses
-                            .where((bus) => bus.isActive)
+                            .where(
+                              (bus) =>
+                                  bus.isActive &&
+                                  (_selectedRoute == _allRoutes ||
+                                      bus.routeName.trim() == _selectedRoute),
+                            )
                             .map(
                               (bus) => Marker(
                                 point: bus.position,
@@ -511,12 +571,30 @@ class _CommuterHomeScreenState extends State<CommuterHomeScreen> {
           ],
         ),
       floatingActionButton: selectedIndex == 0
-          ? FloatingButton(
-              heroTag: 'commuter-home-location',
-              onPressed: () {
-                _mapController.move(_iloiloCenter, 15.0);
-              },
-              icon: Icons.my_location,
+          ? Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                FloatingActionButton(
+                  heroTag: 'commuter-route-filter',
+                  tooltip: _selectedRoute == _allRoutes
+                      ? 'Filter routes'
+                      : 'Route: $_selectedRoute',
+                  onPressed: _showRouteFilter,
+                  child: Icon(
+                    _selectedRoute == _allRoutes
+                        ? Icons.filter_list
+                        : Icons.filter_alt,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                FloatingButton(
+                  heroTag: 'commuter-home-location',
+                  onPressed: () {
+                    _mapController.move(_iloiloCenter, 15.0);
+                  },
+                  icon: Icons.my_location,
+                ),
+              ],
             )
           : null,
     );
