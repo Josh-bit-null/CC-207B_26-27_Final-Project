@@ -299,12 +299,6 @@ class _StartRideScreenState extends State<StartRideScreen> {
               _isRideActive ? Icons.radio_button_checked : Icons.info_outline,
               color: _isRideActive ? colors.primary : colors.onSurfaceVariant,
             ),
-            title: Text(_isRideActive ? 'Ride in progress' : 'Ready to start'),
-            subtitle: Text(
-              _isRideActive && currentBus != null
-                  ? '${currentBus.routeName}\n${currentBus.plateNumber}'
-                  : '${_routes[_selectedRouteId]}\n${selectedPlate.isEmpty ? 'No vehicle selected' : selectedPlate}',
-            ),
             isThreeLine: true,
           ),
         ),
