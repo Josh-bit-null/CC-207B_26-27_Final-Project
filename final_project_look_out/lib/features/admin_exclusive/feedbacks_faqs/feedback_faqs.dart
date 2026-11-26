@@ -1,5 +1,6 @@
 //updated to be functional - Joshua
 
+import 'package:final_project_look_out/widgets/confirmation_dialog.dart';
 import 'package:final_project_look_out/widgets/loader.dart';
 import 'package:final_project_look_out/widgets/popup_notif.dart';
 
@@ -587,19 +588,10 @@ Future<void> _deleteFaq(
 ) async {
   final confirmed = await showDialog<bool>(
     context: context,
-    builder: (dialogContext) => AlertDialog(
-      title: const Text('Delete FAQ?'),
-      content: Text('Delete "${faq.data()['question'] ?? ''}"?'),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(dialogContext, false),
-          child: const Text('Cancel'),
-        ),
-        TextButton(
-          onPressed: () => Navigator.pop(dialogContext, true),
-          child: const Text('Delete'),
-        ),
-      ],
+    builder: (dialogContext) => ConfirmationDialog(
+      title: 'Delete FAQ?',
+      content:'Delete "${faq.data()['question'] ?? ''}"?',
+      confirmText: 'Delete',
     ),
   );
   if (confirmed != true || !context.mounted) return;

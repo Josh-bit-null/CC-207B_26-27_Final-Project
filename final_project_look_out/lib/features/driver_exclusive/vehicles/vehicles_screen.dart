@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:final_project_look_out/widgets/confirmation_dialog.dart';
 import 'package:final_project_look_out/widgets/loader.dart';
 import 'package:final_project_look_out/widgets/popup_notif.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -184,19 +185,10 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
   Future<void> _confirmRemove(String uid, String plate) async {
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Remove vehicle?'),
-        content: Text('Remove $plate from your assigned vehicles?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Remove'),
-          ),
-        ],
+      builder: (context) => ConfirmationDialog(
+        title: 'Remove vehicle?',
+        content: 'Remove $plate from your assigned vehicles?',
+        confirmText: 'Remove',
       ),
     );
     if (confirmed != true || !mounted) return;

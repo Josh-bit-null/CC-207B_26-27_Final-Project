@@ -1,14 +1,16 @@
+import 'package:final_project_look_out/app/themes/app_colors.dart';
 import 'package:flutter/material.dart';
 
 class ConfirmationDialog extends StatelessWidget {
   final String title;
-  final String message;
+  final String content;
   final String confirmText;
+
 
   const ConfirmationDialog({
     super.key,
     this.title = 'Confirm Action',
-    this.message = 'Are you sure?',
+    this.content = 'Are you sure?',
     this.confirmText = 'Confirm',
   });
 
@@ -29,7 +31,7 @@ class ConfirmationDialog extends StatelessWidget {
         ),
       ),
       content: Text(
-        message,
+        content,
         style: theme.textTheme.bodyMedium?.copyWith(
           color: theme.colorScheme.onSurfaceVariant,
         ),
@@ -42,6 +44,11 @@ class ConfirmationDialog extends StatelessWidget {
           child: const Text('Cancel'),
         ),
         FilledButton(
+          style: FilledButton.styleFrom(
+            backgroundColor: ['delete', 'remove'].contains(confirmText.toLowerCase())
+            ? AppColor.errorRed
+            : theme.colorScheme.primary,
+          ),
           onPressed: () {
             Navigator.pop(context, true);
           },

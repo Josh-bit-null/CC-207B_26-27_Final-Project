@@ -447,7 +447,7 @@ class _CommuterHomeScreenState extends State<CommuterHomeScreen> {
                 context: context,
                 builder: (context) => const ConfirmationDialog(
                   title: 'Log Out',
-                  message: 'Are you sure you want to log out?',
+                  content: 'Are you sure you want to log out?',
                   confirmText: 'Log Out',
                 ),
               );

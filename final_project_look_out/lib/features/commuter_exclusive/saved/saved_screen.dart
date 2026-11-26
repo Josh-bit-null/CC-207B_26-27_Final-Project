@@ -1,3 +1,4 @@
+import 'package:final_project_look_out/widgets/confirmation_dialog.dart';
 import 'package:final_project_look_out/widgets/loader.dart';
 import 'package:final_project_look_out/widgets/popup_notif.dart';
 
@@ -249,19 +250,10 @@ class _SavedScreenState extends State<SavedScreen> {
   Future<void> _confirmDeletePlace(String uid, String placeId) async {
     final shouldDelete = await showDialog<bool>(
       context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('Remove saved place?'),
-        content: const Text('This place will be removed from your saved list.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext, false),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(dialogContext, true),
-            child: const Text('Remove'),
-          ),
-        ],
+      builder: (dialogContext) => ConfirmationDialog(
+        title: 'Remove saved place?',
+        content: 'This place will be removed from your saved list.',
+        confirmText: 'Remove',
       ),
     );
     if (shouldDelete != true) return;

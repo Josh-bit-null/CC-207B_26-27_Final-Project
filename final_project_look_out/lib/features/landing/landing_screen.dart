@@ -106,7 +106,6 @@ class _LandingScreenState extends State<LandingScreen> {
     } finally {
       if (mounted && ModalRoute.of(context)?.isCurrent == true) {
         setState(() => isLoading = false);
-        _showMessage('Login Successfully.', 'Success', NotifType.success,);
       }
     }
   }

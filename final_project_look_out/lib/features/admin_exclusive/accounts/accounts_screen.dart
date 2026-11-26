@@ -1,3 +1,4 @@
+import 'package:final_project_look_out/widgets/confirmation_dialog.dart';
 import 'package:final_project_look_out/widgets/loader.dart';
 import 'package:final_project_look_out/widgets/popup_notif.dart';
 
@@ -716,23 +717,13 @@ Future<void> _deleteAccount(
 ) async {
   final confirmed = await showDialog<bool>(
     context: context,
-    builder: (dialogContext) => AlertDialog(
-      title: const Text('Delete account?'),
-      content: Text(
+    builder: (dialogContext) => ConfirmationDialog(
+      title: 'Delete account?',
+      content:
         'Delete the Firestore profile for '
         '${account.data()['fullName'] ?? account.id}? '
         'The Firebase Authentication account may remain and could still sign in.',
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(dialogContext, false),
-          child: const Text('Cancel'),
-        ),
-        TextButton(
-          onPressed: () => Navigator.pop(dialogContext, true),
-          child: const Text('Delete'),
-        ),
-      ],
+      confirmText: 'Delete',
     ),
     
   );

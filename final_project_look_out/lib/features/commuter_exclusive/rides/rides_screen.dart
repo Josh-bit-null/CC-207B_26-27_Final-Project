@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:final_project_look_out/widgets/confirmation_dialog.dart';
 import 'package:final_project_look_out/widgets/loader.dart';
 import 'package:final_project_look_out/widgets/popup_notif.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -478,19 +479,10 @@ class _RidesScreenState extends State<RidesScreen> {
   Future<void> _confirmDeleteRide(String uid, String rideId) async {
     final shouldDelete = await showDialog<bool>(
       context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('Delete ride?'),
-        content: const Text('This recent ride will be permanently removed.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext, false),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(dialogContext, true),
-            child: const Text('Delete'),
-          ),
-        ],
+      builder: (dialogContext) => ConfirmationDialog(
+        title: 'Delete ride?',
+        content: 'This recent ride will be permanently removed.',
+        confirmText: 'Delete',
       ),
     );
     if (shouldDelete == true) await _deleteRide(uid, rideId);
