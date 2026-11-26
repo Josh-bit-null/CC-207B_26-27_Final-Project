@@ -81,12 +81,12 @@ class _StartRideScreenState extends State<StartRideScreen> {
     try {
       if (_isRideActive) {
         _tracking.stopRide(uid);
-        _showMessage('Ride ended. Trip was added to this session’s history.', NotifType.info);
+        _showMessage('Ride ended. Trip was added to this session’s history.', 'Info', NotifType.info);
         return;
       }
 
       if (plate.isEmpty) {
-        _showMessage('Add a vehicle plate in My Vehicles first.', NotifType.warning);
+        _showMessage('Add a vehicle plate in My Vehicles first.', 'Warning', NotifType.warning);
         return;
       }
 
@@ -103,18 +103,19 @@ class _StartRideScreenState extends State<StartRideScreen> {
       );
       _showMessage(
         'Ride started. Your vehicle is being tracked on this device.',
+        'Info',
         NotifType.info
       );
     } catch (error) {
-      _showMessage('Unable to ${_isRideActive ? 'end' : 'start'} ride: $error', NotifType.error);
+      _showMessage('Unable to ${_isRideActive ? 'end' : 'start'} ride: $error', 'Error', NotifType.error);
     } finally {
       if (mounted) setState(() => _isBusy = false);
     }
   }
 
-  void _showMessage(String message, NotifType type) {
+  void _showMessage(String message, String title, NotifType type) {
     if (!mounted) return;
-    PopupNotif(message: message, type: type).show(context);
+    PopupNotif(message: message, title: title, type: type).show(context);
   }
 
   List<String> _platesFrom(Map<String, dynamic>? profile) {

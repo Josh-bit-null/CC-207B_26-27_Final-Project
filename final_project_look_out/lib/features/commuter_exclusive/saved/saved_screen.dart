@@ -1,7 +1,6 @@
 import 'package:final_project_look_out/widgets/loader.dart';
 import 'package:final_project_look_out/widgets/popup_notif.dart';
 
-import '../../../widgets/floating_button.dart';
 import '../../../widgets/lookout_app_bar.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -46,9 +45,9 @@ class _SavedScreenState extends State<SavedScreen> {
         rides.removeWhere((ride) => ride['rideId'] == rideId);
         transaction.update(userRef, {'savedRides': rides});
       });
-      _showMessage('Ride removed from Saved Rides.', NotifType.info);
+      _showMessage('Ride removed from Saved Rides.', 'Info', NotifType.info);
     } catch (error) {
-      _showMessage('Unable to unsave ride: $error', NotifType.error);
+      _showMessage('Unable to unsave ride: $error', 'Error', NotifType.error);
     }
   }
 
@@ -112,7 +111,7 @@ class _SavedScreenState extends State<SavedScreen> {
         throw StateError('Your user profile could not be found.');
       }
 
-      final places = _savedPlacesFrom(userSnapshot.data()?['savedPlaces']);
+      final places = (userSnapshot.data()?['savedPlaces']);
       final index = places.indexWhere((place) => place['id'] == id);
       final savedPlace = {
         'id': id,
@@ -141,7 +140,7 @@ class _SavedScreenState extends State<SavedScreen> {
         throw StateError('Your user profile could not be found.');
       }
 
-      final places = _savedPlacesFrom(userSnapshot.data()?['savedPlaces']);
+      final places = (userSnapshot.data()?['savedPlaces']);
       final originalLength = places.length;
       places.removeWhere((place) => place['id'] == placeId);
       if (places.length == originalLength) {
@@ -152,9 +151,9 @@ class _SavedScreenState extends State<SavedScreen> {
     });
   }
 
-  void _showMessage(String message, NotifType type) {
+  void _showMessage(String message, String title, NotifType type) {
     if (!mounted) return;
-    PopupNotif(message: message, type: type,).show(context);
+    PopupNotif(message: message, title: title, type: type,).show(context);
   }
 
   Future<void> _openPlaceDialog({
@@ -236,9 +235,9 @@ class _SavedScreenState extends State<SavedScreen> {
           type: typeController.text,
           placeId: placeId,
         );
-        _showMessage(placeId == null ? 'Place saved.' : 'Place updated.', NotifType.info);
+        _showMessage(placeId == null ? 'Place saved.' : 'Place updated.', 'Info', NotifType.info);
       } catch (error) {
-        _showMessage('Unable to save place: $error', NotifType.error);
+        _showMessage('Unable to save place: $error', 'Error', NotifType.error);
       }
     }
 
@@ -269,9 +268,9 @@ class _SavedScreenState extends State<SavedScreen> {
 
     try {
       await _deletePlace(uid, placeId);
-      _showMessage('Place removed.', NotifType.info);
+      _showMessage('Place removed.', 'Info', NotifType.info);
     } catch (error) {
-      _showMessage('Unable to remove place: $error', NotifType.error);
+      _showMessage('Unable to remove place: $error', 'Error', NotifType.error);
     }
   }
 

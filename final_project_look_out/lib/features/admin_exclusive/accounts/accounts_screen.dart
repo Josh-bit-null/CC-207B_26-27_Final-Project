@@ -474,7 +474,7 @@ Future<void> _createAccount(BuildContext context) async {
       role: values.role,
     );
     if (context.mounted) {
-      PopupNotif(message: 'Account Created.', type: NotifType.success,).show(context);
+      PopupNotif(message: 'Account Created.', title: 'Success', type: NotifType.success,).show(context);
     }
   } on FirebaseException catch (error) {
     if (context.mounted) {
@@ -528,7 +528,7 @@ Future<void> _updateAccount(
   try {
     await batch.commit();
     if (context.mounted) {
-      PopupNotif(message: 'Account updated.', type: NotifType.success,).show(context);
+      PopupNotif(message: 'Account updated.', title: 'Success', type:  NotifType.success,).show(context);
     }
   } on FirebaseException catch (error) {
     if (context.mounted) {
@@ -745,7 +745,7 @@ Future<void> _deleteAccount(
       email: account.data()['email'] as String? ?? '',
     );
     if (context.mounted) {
-      PopupNotif(message: 'Firestore profile deleted. The Auth account may remain.', type: NotifType.info,).show(context);
+      PopupNotif(message: 'Firestore profile deleted. The Auth account may remain.', title: 'Info', type: NotifType.info,).show(context);
     }
   } on FirebaseException catch (error) {
     if (context.mounted) {

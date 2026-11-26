@@ -572,7 +572,7 @@ Future<void> _editFaq(
   try {
     await batch.commit();
     if (context.mounted) {
-      PopupNotif(message: faq == null ? 'FAQ added.' : 'FAQ updated.', type: NotifType.success,).show(context);
+      PopupNotif(message: faq == null ? 'FAQ added.' : 'FAQ updated.', title: 'Info', type: NotifType.info,).show(context);
     }
   } on FirebaseException catch (error) {
     if (context.mounted) {
@@ -646,7 +646,7 @@ Future<void> _setFeedbackStatus(
   try {
     await batch.commit();
     if (context.mounted) {
-      PopupNotif(message: 'Feedback marked as resolved.', type: NotifType.info,).show(context);
+      PopupNotif(message: 'Feedback marked as resolved.', title: 'Info', type: NotifType.info,).show(context);
     }
   } on FirebaseException catch (error) {
     if (context.mounted) {

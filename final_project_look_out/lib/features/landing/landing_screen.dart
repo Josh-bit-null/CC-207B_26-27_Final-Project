@@ -78,11 +78,11 @@ class _LandingScreenState extends State<LandingScreen> {
 
       if (!mounted) return;
 
-      _showMessage('Logged in successfully', NotifType.success);
+      _showMessage('Logged in successfully', 'Success', NotifType.success);
 
       if (userData == null) {
         await _authService.signOut();
-        _showMessage("User Not FOund", NotifType.warning);
+        _showMessage("User Not FOund", 'Warning', NotifType.warning);
         return;
       }
 
@@ -91,6 +91,7 @@ class _LandingScreenState extends State<LandingScreen> {
       if (actualRole != 'admin' && actualRole != expectedRole) {
         _showMessage(
           "Wrong login tab. This account is registered as${actualRole.toUpperCase()}",
+          'Warning',
           NotifType.warning,
         );
       }
@@ -98,14 +99,14 @@ class _LandingScreenState extends State<LandingScreen> {
       _navigateToDashboard(actualRole);
     } on FirebaseAuthException catch (e) {
       if (!mounted) return;
-      _showMessage(e.toString(), NotifType.warning,);
+      _showMessage(e.toString(), 'Warning', NotifType.warning,);
     } catch (e) {
       if (!mounted) return;
-      _showMessage('Login failed. Please try again.', NotifType.error,);
+      _showMessage('Login failed. Please try again.', 'Error', NotifType.error,);
     } finally {
       if (mounted && ModalRoute.of(context)?.isCurrent == true) {
         setState(() => isLoading = false);
-        _showMessage('Login Successfully.', NotifType.success,);
+        _showMessage('Login Successfully.', 'Success', NotifType.success,);
       }
     }
   }
@@ -132,6 +133,7 @@ class _LandingScreenState extends State<LandingScreen> {
 
       _showMessage(
         'Registered as ${_signupRole.toUpperCase()}! You can now log in.',
+        'Success',
         NotifType.success
       );
 
@@ -140,7 +142,7 @@ class _LandingScreenState extends State<LandingScreen> {
       _signupPassCtrl.clear();
     } catch (e) {
       if (!mounted) return;
-      _showMessage(e.toString(), NotifType.error);
+      _showMessage(e.toString(), 'Error', NotifType.error);
     } finally {
       if (mounted) setState(() => isLoading = false);
     }
@@ -159,8 +161,8 @@ class _LandingScreenState extends State<LandingScreen> {
   }
 
   // NOTIFICATION
-  void _showMessage(String text, NotifType type,) {
-    PopupNotif(message: text, type: type ).show(context);
+  void _showMessage(String text, String title, NotifType type,) {
+    PopupNotif(message: text, title: title, type:type ).show(context);
   }
 
   // REUSABLE INPUT DECORATION

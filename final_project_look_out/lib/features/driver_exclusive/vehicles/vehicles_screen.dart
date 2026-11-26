@@ -175,9 +175,9 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
     if (input == null || !mounted) return;
     try {
       await _addPlate(uid, input);
-      _showMessage('Vehicle added.', NotifType.info);
+      _showMessage('Vehicle added.', 'Info', NotifType.info);
     } catch (error) {
-      _showMessage('Unable to add vehicle: $error', NotifType.error);
+      _showMessage('Unable to add vehicle: $error', 'Error', NotifType.error);
     }
   }
 
@@ -201,21 +201,21 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
     );
     if (confirmed != true || !mounted) return;
     if (_hasActiveRide) {
-      _showMessage('End your active ride before removing a vehicle.',NotifType.warning);
+      _showMessage('End your active ride before removing a vehicle.', 'Warning', NotifType.warning);
       return;
     }
 
     try {
       await _removePlate(uid, plate);
-      _showMessage('Vehicle removed.', NotifType.info);
+      _showMessage('Vehicle removed.', 'Info', NotifType.info);
     } catch (error) {
-      _showMessage('Unable to remove vehicle: $error', NotifType.error);
+      _showMessage('Unable to remove vehicle: $error', 'Error', NotifType.error);
     }
   }
 
-  void _showMessage(String message, NotifType type) {
+  void _showMessage(String message, String title, NotifType type) {
     if (!mounted) return;
-    PopupNotif(message: message, type: type).show(context);
+    PopupNotif(message: message, title: title, type: type).show(context);
   }
 
   @override
@@ -345,13 +345,14 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
                                 try {
                                   if (action == 'select') {
                                     await _setActivePlate(uid, plate);
-                                    _showMessage('Active vehicle updated.', NotifType.info);
+                                    _showMessage('Active vehicle updated.', 'Info', NotifType.info);
                                   } else if (action == 'remove') {
                                     await _confirmRemove(uid, plate);
                                   }
                                 } catch (error) {
                                   _showMessage(
                                     'Unable to update vehicle: $error',
+                                    'Error',
                                     NotifType.error
                                   );
                                 }

@@ -408,7 +408,7 @@ class _RidesScreenState extends State<RidesScreen> {
     if (!mounted) return;
     if (!foundPuv) {
       if (_tracker.viewState.value.message == null) {
-        _showMessage('No active PUV detected nearby.');
+        _showMessage('No active PUV detected nearby.', 'Info', NotifType.info);
       }
       return;
     }
@@ -452,9 +452,9 @@ class _RidesScreenState extends State<RidesScreen> {
         }
         transaction.update(userRef, {'savedRides': savedRides});
       });
-      _showMessage(isFavorite ? 'Ride removed from favorites.' : 'Ride saved.', NotifType.info);
+      _showMessage(isFavorite ? 'Ride removed from favorites.' : 'Ride saved.', 'Info', NotifType.info);
     } catch (error) {
-      _showMessage('Unable to update favorites: $error', NotifType.error);
+      _showMessage('Unable to update favorites: $error', 'Error', NotifType.error);
     }
   }
 
@@ -469,9 +469,9 @@ class _RidesScreenState extends State<RidesScreen> {
         }
         transaction.delete(rideRef);
       });
-      _showMessage('Ride deleted.', NotifType.info);
+      _showMessage('Ride deleted.','Info', NotifType.info);
     } catch (error) {
-      _showMessage('Unable to delete ride: $error', NotifType.error);
+      _showMessage('Unable to delete ride: $error', 'Error', NotifType.error);
     }
   }
 
@@ -540,9 +540,9 @@ class _RidesScreenState extends State<RidesScreen> {
     return value.toDate().toLocal().toString();
   }
 
-  void _showMessage(String message, NotifType type) {
+  void _showMessage(String message, String title, NotifType type) {
     if (!mounted) return;
-    PopupNotif(message: message, type: type,).show(context);
+    PopupNotif(message: message, title: title, type: type,).show(context);
   }
 
   @override

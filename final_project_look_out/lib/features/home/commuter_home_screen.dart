@@ -212,13 +212,7 @@ class _CommuterHomeScreenState extends State<CommuterHomeScreen> {
     if (!mounted) return;
     final position = _commuterPosition;
     if (position == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Location unavailable. Enable location permission and try again.',
-          ),
-        ),
-      );
+      PopupNotif(message: 'Location unavailable. Enable location permission and try again.', title: 'Warning', type: NotifType.warning,).show(context);
       return;
     }
     _mapController.move(position, 16.0);

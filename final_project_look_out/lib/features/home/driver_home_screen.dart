@@ -131,14 +131,12 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
         if (mounted) setState(() => _isRideActive = false);
       } catch (error) {
         if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Unable to stop sharing location: $error')),
-        );
+        PopupNotif(message: 'Unable to stop sharing location: $error', title: 'Error', type: NotifType.error).show(context);
       }
       return;
     }
     if (_activePlate.isEmpty) {
-      PopupNotif(message: 'Active plate is not set', type: NotifType.warning,).show(context);
+      PopupNotif(message: 'Active plate is not set', title: 'Warning', type: NotifType.warning,).show(context);
       return;
     }
     try {
@@ -150,9 +148,7 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
       if (mounted) setState(() => _isRideActive = true);
     } catch (error) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Unable to share driver location: $error')),
-      );
+      PopupNotif(message: 'Unable to share driver location: $error', title: 'Error', type: NotifType.error);
     }
   }
 
@@ -416,6 +412,7 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
                               '${corridor.name}: ${corridor.label} '
                               '(${(corridor.confidence * 100).toStringAsFixed(0)}% AI confidence, '
                               'Rain: ${_predictor.currentRainMm} mm)',
+                          title: 'Info',
                           type: NotifType.info,
                         ).show(context);
                       },
