@@ -126,20 +126,34 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
     final uid = FirebaseAuth.instance.currentUser?.uid;
     if (uid == null) return;
     if (_isRideActive) {
-      _busTracking.stopRide(uid);
-      setState(() => _isRideActive = false);
+      try {
+        await _busTracking.stopRide(uid);
+        if (mounted) setState(() => _isRideActive = false);
+      } catch (error) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Unable to stop sharing location: $error')),
+        );
+      }
       return;
     }
     if (_activePlate.isEmpty) {
       PopupNotif(message: 'Active plate is not set', type: NotifType.warning,).show(context);
       return;
     }
-    await _busTracking.startRide(
-      driverId: uid,
-      plateNumber: _activePlate,
-      routeName: 'Iloilo Route 4',
-    );
-    setState(() => _isRideActive = true);
+    try {
+      await _busTracking.startRide(
+        driverId: uid,
+        plateNumber: _activePlate,
+        routeName: 'Iloilo Route 4',
+      );
+      if (mounted) setState(() => _isRideActive = true);
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Unable to share driver location: $error')),
+      );
+    }
   }
 
   @override

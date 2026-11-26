@@ -20,6 +20,8 @@ import '../../widgets/lookout_drawer.dart';
 import '../../widgets/congestion_map_layers.dart';
 
 //services and packages
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:geolocator/geolocator.dart';
@@ -46,6 +48,8 @@ class _CommuterHomeScreenState extends State<CommuterHomeScreen> {
   final MapController _mapController = MapController();
   final LocalBusTrackingService _busTracking = LocalBusTrackingService.instance;
   final FirestorePokeService _pokeService = FirestorePokeService.instance;
+  StreamSubscription<Position>? _locationSubscription;
+  LatLng? _commuterPosition;
   String _selectedRoute = _allRoutes;
 
   // Iloilo City Proper coordinates
@@ -76,36 +80,73 @@ class _CommuterHomeScreenState extends State<CommuterHomeScreen> {
     return routes;
   }
 
+  List<ActiveBus> _mergeBuses(
+    List<ActiveBus> remoteBuses,
+    List<ActiveBus> localBuses,
+  ) {
+    final busesByDriver = {for (final bus in remoteBuses) bus.driverId: bus};
+    for (final bus in localBuses) {
+      busesByDriver[bus.driverId] = bus;
+    }
+    return busesByDriver.values.toList();
+  }
+
   Future<void> _showRouteFilter() async {
-    final routes = _routesFrom(_busTracking.activeBuses.value);
     final selectedRoute = await showModalBottomSheet<String>(
       context: context,
       builder: (sheetContext) => SafeArea(
-        child: ListView(
-          shrinkWrap: true,
-          padding: const EdgeInsets.symmetric(vertical: 8),
-          children: [
-            const ListTile(title: Text('Select route')),
-            ListTile(
-              leading: Icon(
-                _selectedRoute == _allRoutes
-                    ? Icons.radio_button_checked
-                    : Icons.radio_button_unchecked,
-              ),
-              title: const Text('All routes'),
-              onTap: () => Navigator.pop(sheetContext, _allRoutes),
-            ),
-            for (final route in routes)
-              ListTile(
-                leading: Icon(
-                  _selectedRoute == route
-                      ? Icons.radio_button_checked
-                      : Icons.radio_button_unchecked,
-                ),
-                title: Text(route),
-                onTap: () => Navigator.pop(sheetContext, route),
-              ),
-          ],
+        child: StreamBuilder<List<ActiveBus>>(
+          stream: _busTracking.remoteActiveBuses,
+          builder: (context, remoteSnapshot) {
+            return ValueListenableBuilder<List<ActiveBus>>(
+              valueListenable: _busTracking.activeBuses,
+              builder: (context, localBuses, child) {
+                final routes = _routesFrom(
+                  _mergeBuses(
+                    remoteSnapshot.data ?? const <ActiveBus>[],
+                    localBuses,
+                  ),
+                );
+                return ListView(
+                  shrinkWrap: true,
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  children: [
+                    const ListTile(title: Text('Select route')),
+                    ListTile(
+                      leading: Icon(
+                        _selectedRoute == _allRoutes
+                            ? Icons.radio_button_checked
+                            : Icons.radio_button_unchecked,
+                      ),
+                      title: const Text('All routes'),
+                      onTap: () => Navigator.pop(sheetContext, _allRoutes),
+                    ),
+                    if (remoteSnapshot.hasError)
+                      ListTile(
+                        title: Text(
+                          'Unable to load remote routes: '
+                          '${remoteSnapshot.error}',
+                        ),
+                      ),
+                    if (remoteSnapshot.connectionState ==
+                            ConnectionState.waiting &&
+                        routes.isEmpty)
+                      const ListTile(title: Text('Loading active routes...')),
+                    for (final route in routes)
+                      ListTile(
+                        leading: Icon(
+                          _selectedRoute == route
+                              ? Icons.radio_button_checked
+                              : Icons.radio_button_unchecked,
+                        ),
+                        title: Text(route),
+                        onTap: () => Navigator.pop(sheetContext, route),
+                      ),
+                  ],
+                );
+              },
+            );
+          },
         ),
       ),
     );
@@ -117,6 +158,76 @@ class _CommuterHomeScreenState extends State<CommuterHomeScreen> {
   void initState() {
     super.initState();
     _loadTrafficForecast();
+    _startLocationTracking();
+  }
+
+  Future<void> _startLocationTracking() async {
+    var permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.denied) {
+      permission = await Geolocator.requestPermission();
+    }
+    if (permission == LocationPermission.denied ||
+        permission == LocationPermission.deniedForever ||
+        !await Geolocator.isLocationServiceEnabled()) {
+      return;
+    }
+
+    try {
+      final position = await Geolocator.getCurrentPosition(
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.high,
+        ),
+      );
+      if (!mounted) return;
+      setState(() {
+        _commuterPosition = LatLng(position.latitude, position.longitude);
+      });
+    } catch (_) {
+      // The map remains usable without a location indicator.
+    }
+
+    await _locationSubscription?.cancel();
+    _locationSubscription =
+        Geolocator.getPositionStream(
+          locationSettings: const LocationSettings(
+            accuracy: LocationAccuracy.high,
+            distanceFilter: 10,
+          ),
+        ).listen(
+          (position) {
+            if (!mounted) return;
+            setState(() {
+              _commuterPosition = LatLng(
+                position.latitude,
+                position.longitude,
+              );
+            });
+          },
+          onError: (_) {},
+        );
+  }
+
+  Future<void> _focusOnCommuterLocation() async {
+    await _startLocationTracking();
+    if (!mounted) return;
+    final position = _commuterPosition;
+    if (position == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Location unavailable. Enable location permission and try again.',
+          ),
+        ),
+      );
+      return;
+    }
+    _mapController.move(position, 16.0);
+  }
+
+  Future<void> _showCommuterMap() async {
+    if (!mounted) return;
+    setState(() => selectedIndex = 0);
+    await _focusOnCommuterLocation();
   }
 
   Future<void> _loadTrafficForecast() async {
@@ -213,6 +324,7 @@ class _CommuterHomeScreenState extends State<CommuterHomeScreen> {
 
   @override
   void dispose() {
+    _locationSubscription?.cancel();
     _mapController.dispose();
     super.dispose();
   }
@@ -269,7 +381,14 @@ class _CommuterHomeScreenState extends State<CommuterHomeScreen> {
 
               Navigator.push(
                 context,
-                MaterialPageRoute(builder: (context) => const RidesScreen()),
+                MaterialPageRoute(
+                  builder: (context) => RidesScreen(
+                    onShowMap: () async {
+                      Navigator.pop(context);
+                      await _showCommuterMap();
+                    },
+                  ),
+                ),
               );
             },
           ),
@@ -469,31 +588,81 @@ class _CommuterHomeScreenState extends State<CommuterHomeScreen> {
                   ),
 
                   // 3. Live PUV Markers
-                  ValueListenableBuilder<List<ActiveBus>>(
-                    valueListenable: _busTracking.activeBuses,
-                    builder: (context, buses, child) {
-                      return MarkerLayer(
-                        markers: buses
-                            .where(
-                              (bus) =>
-                                  bus.isActive &&
-                                  (_selectedRoute == _allRoutes ||
-                                      bus.routeName.trim() == _selectedRoute),
-                            )
-                            .map(
-                              (bus) => Marker(
-                                point: bus.position,
-                                width: 48,
-                                height: 48,
-                                child: IconButton(
-                                  tooltip: bus.plateNumber,
-                                  onPressed: () =>
-                                      _showBusActions(context, bus),
-                                  icon: const Icon(Icons.directions_bus),
+                  if (_commuterPosition != null)
+                    MarkerLayer(
+                      markers: [
+                        Marker(
+                          point: _commuterPosition!,
+                          width: 48,
+                          height: 48,
+                          alignment: Alignment.center,
+                          child: Tooltip(
+                            message: 'Your location',
+                            child: Container(
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: Colors.blue.withValues(alpha: 0.20),
+                              ),
+                              padding: const EdgeInsets.all(8),
+                              child: Container(
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  color: Colors.blue,
+                                  border: Border.all(
+                                    color: Colors.white,
+                                    width: 3,
+                                  ),
+                                  boxShadow: const [
+                                    BoxShadow(
+                                      color: Colors.black26,
+                                      blurRadius: 4,
+                                      offset: Offset(0, 2),
+                                    ),
+                                  ],
                                 ),
                               ),
-                            )
-                            .toList(),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+
+                  StreamBuilder<List<ActiveBus>>(
+                    stream: _busTracking.remoteActiveBuses,
+                    builder: (context, remoteSnapshot) {
+                      return ValueListenableBuilder<List<ActiveBus>>(
+                        valueListenable: _busTracking.activeBuses,
+                        builder: (context, localBuses, child) {
+                          final buses =
+                              _mergeBuses(
+                                remoteSnapshot.data ?? const <ActiveBus>[],
+                                localBuses,
+                              )
+                              .where(
+                                (bus) =>
+                                    bus.isActive &&
+                                    (_selectedRoute == _allRoutes ||
+                                        bus.routeName.trim() == _selectedRoute),
+                              )
+                              .toList();
+                          return MarkerLayer(
+                            markers: buses
+                                .map(
+                                  (bus) => Marker(
+                                    point: bus.position,
+                                    width: 48,
+                                    height: 48,
+                                    child: IconButton(
+                                      tooltip: bus.plateNumber,
+                                      onPressed: () =>
+                                          _showBusActions(context, bus),
+                                      icon: const Icon(Icons.directions_bus),
+                                    ),
+                                  ),
+                                )
+                                .toList(),
+                          );
+                        },
                       );
                     },
                   ),
@@ -569,6 +738,7 @@ class _CommuterHomeScreenState extends State<CommuterHomeScreen> {
               onMenuPressed: () {
                 _scaffoldKey.currentState?.openDrawer();
               },
+              onShowMap: _showCommuterMap,
             ),
             SavedScreen(
               onMenuPressed: () {
@@ -606,9 +776,7 @@ class _CommuterHomeScreenState extends State<CommuterHomeScreen> {
                 const SizedBox(height: 12),
                 FloatingButton(
                   heroTag: 'commuter-home-location',
-                  onPressed: () {
-                    _mapController.move(_iloiloCenter, 15.0);
-                  },
+                  onPressed: _focusOnCommuterLocation,
                   icon: Icons.my_location,
                 ),
               ],
