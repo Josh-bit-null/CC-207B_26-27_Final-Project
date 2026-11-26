@@ -1,3 +1,6 @@
+import 'dart:async';
+import 'dart:developer' as developer;
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:latlong2/latlong.dart';
@@ -9,7 +12,9 @@ class FirestorePokeService {
   static final FirestorePokeService instance = FirestorePokeService._();
 
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-
+  final AudioPlayer _pokeAudioPlayer = AudioPlayer();
+  final Map<String, Set<String>> _knownPokeIdsByPlate = {};
+  final Set<String> _initializedPokePlates = {};
 
   //when poke in Commuter is clicked
   Future<void> sendPoke({
@@ -50,16 +55,11 @@ class FirestorePokeService {
     await batch.commit();
   }
 
-
   // on Driver side, add poke count
   Stream<int> streamPokeCount(String activePlate) {
     if (activePlate.isEmpty) {
       return Stream<int>.value(0);
     }
-
-    final AudioPlayer audioPlayer = AudioPlayer();
-
-    audioPlayer.play(AssetSource('poke_audio.mp3'));
 
     return _firestore
         .collection('poke_counts')
@@ -87,6 +87,7 @@ class FirestorePokeService {
           final pokes = snapshot.docs
               .where((poke) => poke.data()['recordType'] != 'ride')
               .toList();
+          _playSoundForNewPokes(activePlate, pokes);
           pokes.sort((a, b) {
             final aTime = a.data()['createdAt'];
             final bTime = b.data()['createdAt'];
@@ -100,6 +101,40 @@ class FirestorePokeService {
           });
           return pokes;
         });
+  }
+
+  void _playSoundForNewPokes(
+    String activePlate,
+    List<QueryDocumentSnapshot<Map<String, dynamic>>> pokes,
+  ) {
+    final currentPokeIds = pokes.map((poke) => poke.id).toSet();
+    final knownPokeIds = _knownPokeIdsByPlate.putIfAbsent(
+      activePlate,
+      () => <String>{},
+    );
+    if (_initializedPokePlates.add(activePlate)) {
+      knownPokeIds.addAll(currentPokeIds);
+      return;
+    }
+
+    final hasNewPokes = currentPokeIds.difference(knownPokeIds).isNotEmpty;
+    knownPokeIds
+      ..retainAll(currentPokeIds)
+      ..addAll(currentPokeIds);
+    if (hasNewPokes) unawaited(_playPokeSound());
+  }
+
+  Future<void> _playPokeSound() async {
+    try {
+      await _pokeAudioPlayer.play(AssetSource('audio/poke_audio.mp3'));
+    } on Exception catch (error, stackTrace) {
+      developer.log(
+        'Unable to play incoming poke sound.',
+        name: 'FirestorePokeService',
+        error: error,
+        stackTrace: stackTrace,
+      );
+    }
   }
 
   Future<void> acknowledgePoke({
