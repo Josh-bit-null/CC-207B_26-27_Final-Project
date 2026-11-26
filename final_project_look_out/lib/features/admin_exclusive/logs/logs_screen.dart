@@ -1,18 +1,15 @@
 //updated to be functional - Joshua
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:final_project_look_out/widgets/loader.dart';
+
 import '../../../widgets/lookout_app_bar.dart';
 
 import 'package:flutter/material.dart';
 
 class LogsScreen extends StatelessWidget {
-
   final VoidCallback? onMenuPressed;
 
-  const LogsScreen({
-    super.key,
-    this.onMenuPressed,  
-  });
+  const LogsScreen({super.key, this.onMenuPressed});
 
   @override
   Widget build(BuildContext context) {
@@ -27,7 +24,7 @@ class LogsScreen extends StatelessWidget {
         title: 'Activity Logs',
         onMenuPressed: onMenuPressed,
       ),
-    
+
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -45,7 +42,8 @@ class LogsScreen extends StatelessWidget {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    'A record of recent actions across the LookOut! system.',
+                    'Recent account, feedback, and FAQ changes recorded by '
+                    'administrators.',
                     style: theme.textTheme.bodyMedium?.copyWith(
                       color: colors.onSurfaceVariant,
                     ),

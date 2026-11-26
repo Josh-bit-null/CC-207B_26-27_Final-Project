@@ -609,6 +609,13 @@ Future<void> _deleteFaq(
   );
   try {
     await batch.commit();
+    if (context.mounted) {
+      PopupNotif(
+        message: 'FAQ deleted.',
+        title: 'Info',
+        type: NotifType.info,
+      ).show(context);
+    }
   } on FirebaseException catch (error) {
     if (context.mounted) {
       PopupNotif(message: 'Unable to delete FAQ: ${error.message}', title: 'Error', type: NotifType.error,).show(context);

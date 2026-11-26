@@ -28,136 +28,181 @@ class AnalyticsScreen extends StatelessWidget {
       appBar: LookOutAppBar(title: 'Analytics', onMenuPressed: onMenuPressed),
       body: uid == null
           ? const Center(child: Text('Sign in to view your ride analytics.'))
-          : StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+          : StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
               stream: FirebaseFirestore.instance
-                  .collection('rides')
-                  .where('commuterUid', isEqualTo: uid)
+                  .collection('users')
+                  .doc(uid)
                   .snapshots(),
-              builder: (context, snapshot) {
-                if (snapshot.hasError) {
+              builder: (context, userSnapshot) {
+                if (userSnapshot.hasError) {
                   return Center(
                     child: Padding(
                       padding: const EdgeInsets.all(24),
                       child: Text(
-                        'Unable to load ride analytics: ${snapshot.error}',
+                        'Unable to load account details: '
+                        '${userSnapshot.error}',
                         textAlign: TextAlign.center,
                       ),
                     ),
                   );
                 }
-                if (snapshot.connectionState == ConnectionState.waiting) {
+                if (userSnapshot.connectionState == ConnectionState.waiting) {
                   return const Loader.circular();
                 }
-
-                final rides = snapshot.data?.docs ?? [];
-                final totalSecondsByWeekday = List<double>.filled(7, 0);
-                final rideCountsByWeekday = List<int>.filled(7, 0);
-                var totalDurationSeconds = 0.0;
-                var ridesWithDuration = 0;
-
-                for (final ride in rides) {
-                  final data = ride.data();
-                  final startedAt = data['startedAt'];
-                  final durationSeconds = _durationSeconds(data);
-                  if (startedAt is! Timestamp ||
-                      durationSeconds == null ||
-                      durationSeconds <= 0) {
-                    continue;
-                  }
-
-                  final weekday = startedAt.toDate().toLocal().weekday - 1;
-                  totalSecondsByWeekday[weekday] += durationSeconds;
-                  rideCountsByWeekday[weekday]++;
-                  totalDurationSeconds += durationSeconds;
-                  ridesWithDuration++;
+                if (userSnapshot.data?.exists != true) {
+                  return const Center(
+                    child: Text('Unable to load your analytics profile.'),
+                  );
                 }
 
-                final weekdayStats = List.generate(
-                  _weekdayLabels.length,
-                  (index) => _WeekdayRideStats(
-                    label: _weekdayLabels[index],
-                    averageMinutes: rideCountsByWeekday[index] == 0
-                        ? 0
-                        : totalSecondsByWeekday[index] /
-                              rideCountsByWeekday[index] /
-                              60,
-                    rideCount: rideCountsByWeekday[index],
-                  ),
-                );
-                final weekdaysWithRides = weekdayStats
-                    .where((day) => day.rideCount > 0)
-                    .toList();
-                final slowestWeekday = weekdaysWithRides.isEmpty
-                    ? null
-                    : weekdaysWithRides.reduce(
-                        (first, second) =>
-                            first.averageMinutes >= second.averageMinutes
-                            ? first
-                            : second,
-                      );
-                final overallAverageMinutes = ridesWithDuration == 0
-                    ? null
-                    : totalDurationSeconds / ridesWithDuration / 60;
-                final metricCards = [
-                  _MetricCard(
-                    title: 'Rides recorded',
-                    value: rides.length.toString(),
-                    icon: Icons.route_outlined,
-                  ),
-                  _MetricCard(
-                    title: 'Average ride duration',
-                    value: _formatDuration(overallAverageMinutes),
-                    icon: Icons.schedule_outlined,
-                  ),
-                  _MetricCard(
-                    title: 'Longest average weekday',
-                    value: slowestWeekday?.label ?? '—',
-                    icon: Icons.trending_up,
-                  ),
-                  _MetricCard(
-                    title: 'Days with recorded rides',
-                    value: weekdaysWithRides.length.toString(),
-                    icon: Icons.calendar_today_outlined,
-                  ),
-                ];
-
-                return ListView(
-                  padding: const EdgeInsets.all(20),
-                  children: [
-                    Text(
-                      'Your Ride Analytics',
-                      style: Theme.of(context).textTheme.headlineSmall
-                          ?.copyWith(fontWeight: FontWeight.bold),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'Compare your average ride duration by weekday. Longer '
-                      'rides may indicate heavier traffic; this is based on '
-                      'your past rides, not live traffic data.',
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: Theme.of(context).colorScheme.onSurfaceVariant,
-                      ),
-                    ),
-                    const SizedBox(height: 20),
-                    GridView.builder(
-                      gridDelegate:
-                          const SliverGridDelegateWithFixedCrossAxisCount(
-                            crossAxisCount: 2,
-                            crossAxisSpacing: 12,
-                            mainAxisSpacing: 12,
-                            mainAxisExtent: 132,
-                          ),
-                      shrinkWrap: true,
-                      physics: const NeverScrollableScrollPhysics(),
-                      itemCount: metricCards.length,
-                      itemBuilder: (context, index) => metricCards[index],
-                    ),
-                    const SizedBox(height: 20),
-                    _RideDurationChart(days: weekdayStats),
-                  ],
-                );
+                final isDriver = userSnapshot.data?.data()?['role'] == 'driver';
+                return _buildAnalytics(context, uid, isDriver: isDriver);
               },
             ),
+    );
+  }
+
+  Widget _buildAnalytics(
+    BuildContext context,
+    String uid, {
+    required bool isDriver,
+  }) {
+    final firestore = FirebaseFirestore.instance;
+    final historyStream = isDriver
+        ? firestore
+              .collection('driver_trips')
+              .where('driverUid', isEqualTo: uid)
+              .snapshots()
+        : firestore
+              .collection('rides')
+              .where('commuterUid', isEqualTo: uid)
+              .snapshots();
+
+    return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+      stream: historyStream,
+      builder: (context, snapshot) {
+        if (snapshot.hasError) {
+          return Center(
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Text(
+                'Unable to load ride analytics: ${snapshot.error}',
+                textAlign: TextAlign.center,
+              ),
+            ),
+          );
+        }
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Loader.circular();
+        }
+
+        final rides = snapshot.data?.docs ?? [];
+        final totalSecondsByWeekday = List<double>.filled(7, 0);
+        final rideCountsByWeekday = List<int>.filled(7, 0);
+        var totalDurationSeconds = 0.0;
+        var ridesWithDuration = 0;
+
+        for (final ride in rides) {
+          final data = ride.data();
+          final startedAt = data['startedAt'];
+          final durationSeconds = _durationSeconds(data);
+          if (startedAt is! Timestamp ||
+              durationSeconds == null ||
+              durationSeconds <= 0) {
+            continue;
+          }
+
+          final weekday = startedAt.toDate().toLocal().weekday - 1;
+          totalSecondsByWeekday[weekday] += durationSeconds;
+          rideCountsByWeekday[weekday]++;
+          totalDurationSeconds += durationSeconds;
+          ridesWithDuration++;
+        }
+
+        final weekdayStats = List.generate(
+          _weekdayLabels.length,
+          (index) => _WeekdayRideStats(
+            label: _weekdayLabels[index],
+            averageMinutes: rideCountsByWeekday[index] == 0
+                ? 0
+                : totalSecondsByWeekday[index] /
+                      rideCountsByWeekday[index] /
+                      60,
+            rideCount: rideCountsByWeekday[index],
+          ),
+        );
+        final weekdaysWithRides = weekdayStats
+            .where((day) => day.rideCount > 0)
+            .toList();
+        final slowestWeekday = weekdaysWithRides.isEmpty
+            ? null
+            : weekdaysWithRides.reduce(
+                (first, second) => first.averageMinutes >= second.averageMinutes
+                    ? first
+                    : second,
+              );
+        final overallAverageMinutes = ridesWithDuration == 0
+            ? null
+            : totalDurationSeconds / ridesWithDuration / 60;
+        final recordType = isDriver ? 'trip' : 'ride';
+        final metricCards = [
+          _MetricCard(
+            title: isDriver ? 'Trips recorded' : 'Rides recorded',
+            value: rides.length.toString(),
+            icon: Icons.route_outlined,
+          ),
+          _MetricCard(
+            title: 'Average $recordType duration',
+            value: _formatDuration(overallAverageMinutes),
+            icon: Icons.schedule_outlined,
+          ),
+          _MetricCard(
+            title: 'Longest average weekday',
+            value: slowestWeekday?.label ?? '—',
+            icon: Icons.trending_up,
+          ),
+          _MetricCard(
+            title: 'Days with recorded ${isDriver ? 'trips' : 'rides'}',
+            value: weekdaysWithRides.length.toString(),
+            icon: Icons.calendar_today_outlined,
+          ),
+        ];
+
+        return ListView(
+          padding: const EdgeInsets.all(20),
+          children: [
+            Text(
+              isDriver ? 'Your Driver Analytics' : 'Your Ride Analytics',
+              style: Theme.of(context).textTheme.headlineSmall
+                  ?.copyWith(fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Compare your average $recordType duration by weekday. Longer '
+              'durations may indicate heavier traffic; this is based on your '
+              'past $recordType history, not live traffic data.',
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
+            ),
+            const SizedBox(height: 20),
+            GridView.builder(
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 2,
+                crossAxisSpacing: 12,
+                mainAxisSpacing: 12,
+                mainAxisExtent: 132,
+              ),
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: metricCards.length,
+              itemBuilder: (context, index) => metricCards[index],
+            ),
+            const SizedBox(height: 20),
+            _RideDurationChart(days: weekdayStats, recordType: recordType),
+          ],
+        );
+      },
     );
   }
 }
@@ -196,9 +241,12 @@ class _WeekdayRideStats {
 }
 
 class _RideDurationChart extends StatelessWidget {
-  const _RideDurationChart({required this.days});
+  const _RideDurationChart({required this.days, required this.recordType});
 
   final List<_WeekdayRideStats> days;
+  final String recordType;
+
+  String get _pluralRecordType => recordType == 'trip' ? 'trips' : 'rides';
 
   double get _axisMaximum {
     final maxMinutes = days.fold<double>(
@@ -233,7 +281,7 @@ class _RideDurationChart extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Average ride duration by weekday',
+              'Average $recordType duration by weekday',
               style: textTheme.titleMedium?.copyWith(
                 fontWeight: FontWeight.bold,
               ),
@@ -294,10 +342,10 @@ class _RideDurationChart extends StatelessWidget {
                                             ),
                                             child: Tooltip(
                                               message: day.rideCount == 0
-                                                  ? '${day.label}: no ride data'
+                                                  ? '${day.label}: no $recordType data'
                                                   : '${day.label}: '
                                                         '${day.averageMinutes.toStringAsFixed(1)} min average '
-                                                        '(${day.rideCount} rides)',
+                                                        '(${day.rideCount} $_pluralRecordType)',
                                               child: Align(
                                                 alignment:
                                                     Alignment.bottomCenter,

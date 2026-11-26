@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart';
@@ -55,6 +56,16 @@ class DriverTrip {
   final DateTime endedAt;
 
   Duration get duration => endedAt.difference(startedAt);
+}
+
+class DriverTripSyncException implements Exception {
+  const DriverTripSyncException(this.cause);
+
+  final Object cause;
+
+  @override
+  String toString() =>
+      'The ride ended, but driver analytics could not be synced: $cause';
 }
 
 class LocalBusTrackingService {
@@ -389,15 +400,19 @@ class LocalBusTrackingService {
         });
       }
     }
-    if (recordTrip && activeBus != null) {
+    final endedAt = DateTime.now();
+    final completedTrip = recordTrip && activeBus != null
+        ? DriverTrip(
+            driverId: activeBus.driverId,
+            plateNumber: activeBus.plateNumber,
+            routeName: activeBus.routeName,
+            startedAt: activeBus.startedAt,
+            endedAt: endedAt,
+          )
+        : null;
+    if (completedTrip != null) {
       completedTrips.value = [
-        DriverTrip(
-          driverId: activeBus.driverId,
-          plateNumber: activeBus.plateNumber,
-          routeName: activeBus.routeName,
-          startedAt: activeBus.startedAt,
-          endedAt: DateTime.now(),
-        ),
+        completedTrip,
         ...completedTrips.value,
       ];
     }
@@ -411,6 +426,30 @@ class LocalBusTrackingService {
     activeBuses.value = activeBuses.value
         .where((bus) => bus.driverId != driverId)
         .toList();
+
+    if (completedTrip != null) {
+      final tripId =
+          '${Uri.encodeComponent(completedTrip.driverId)}_'
+          '${completedTrip.startedAt.microsecondsSinceEpoch}';
+      try {
+        await FirebaseFirestore.instance
+            .collection('driver_trips')
+            .doc(tripId)
+            .set({
+              'id': tripId,
+              'driverUid': completedTrip.driverId,
+              'plateNumber': completedTrip.plateNumber,
+              'routeName': completedTrip.routeName,
+              'startedAt': Timestamp.fromDate(completedTrip.startedAt),
+              'endedAt': Timestamp.fromDate(completedTrip.endedAt),
+              'durationSeconds': completedTrip.duration.inSeconds,
+              'status': 'completed',
+              'createdAt': FieldValue.serverTimestamp(),
+            });
+      } on FirebaseException catch (error) {
+        throw DriverTripSyncException(error);
+      }
+    }
   }
 
   Future<double> calculateLocalEta({

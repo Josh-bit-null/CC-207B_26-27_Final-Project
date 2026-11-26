@@ -125,8 +125,10 @@ class _StartRideScreenState extends State<StartRideScreen> {
       }
     } catch (error) {
       _showMessage(
-        'Unable to ${_isRideActive ? 'end' : 'start'} ride: $error',
-        'Error',
+        error is DriverTripSyncException
+            ? error.toString()
+            : 'Unable to ${_isRideActive ? 'end' : 'start'} ride: $error',
+        error is DriverTripSyncException ? 'Analytics sync failed' : 'Error',
         NotifType.error,
       );
     } finally {

@@ -6,6 +6,7 @@ import '../../../services/admin_account_service.dart';
 import '../../../services/admin_log_service.dart';
 import '../../../widgets/lookout_app_bar.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 import 'package:flutter/material.dart';
 
 class AccountsScreen extends StatefulWidget {
@@ -477,6 +478,16 @@ Future<void> _createAccount(BuildContext context) async {
     if (context.mounted) {
       PopupNotif(message: 'Account Created.', title: 'Success', type: NotifType.success,).show(context);
     }
+  } on FirebaseFunctionsException catch (error) {
+    if (context.mounted) {
+      PopupNotif(
+        message:
+            'Unable to create account (${error.code}): '
+            '${error.message ?? 'No details provided.'}',
+        title: 'Error',
+        type: NotifType.error,
+      ).show(context);
+    }
   } on FirebaseException catch (error) {
     if (context.mounted) {
       PopupNotif(message: 'Unable to create account: ${error.message}', title: 'Error', type: NotifType.error,).show(context);
@@ -740,7 +751,11 @@ Future<void> _deleteAccount(
     }
   } on FirebaseException catch (error) {
     if (context.mounted) {
-      PopupNotif(message: 'Unable to delete account: ${error.message}', title: 'Error', type: NotifType.success,).show(context);
+      PopupNotif(
+        message: 'Unable to delete account: ${error.message}',
+        title: 'Error',
+        type: NotifType.error,
+      ).show(context);
     }
   }
 }

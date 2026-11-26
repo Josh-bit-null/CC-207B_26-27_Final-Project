@@ -132,8 +132,12 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
       } catch (error) {
         if (!mounted) return;
         PopupNotif(
-          message: 'Unable to stop sharing location: $error',
-          title: 'Error',
+          message: error is DriverTripSyncException
+              ? error.toString()
+              : 'Unable to stop sharing location: $error',
+          title: error is DriverTripSyncException
+              ? 'Analytics sync failed'
+              : 'Error',
           type: NotifType.error,
         ).show(context);
       }
