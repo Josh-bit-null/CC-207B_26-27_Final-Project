@@ -8,6 +8,7 @@ import 'package:final_project_look_out/features/analytics/analytics_screen.dart'
 import 'package:final_project_look_out/features/announcements/announcements_screen.dart';
 import 'package:final_project_look_out/features/commuter_exclusive/rides/rides_screen.dart';
 import 'package:final_project_look_out/features/commuter_exclusive/saved/saved_screen.dart';
+import 'package:final_project_look_out/features/faqs/faqs_screen.dart';
 import 'package:final_project_look_out/features/landing/landing_screen.dart';
 import 'package:final_project_look_out/features/profile/profile_screen.dart';
 import 'package:final_project_look_out/services/auth_service.dart';
@@ -43,6 +44,13 @@ class CommuterHomeScreen extends StatefulWidget {
 
 class _CommuterHomeScreenState extends State<CommuterHomeScreen> {
   static const String _allRoutes = '__all_routes__';
+  static const Set<String> _knownRoutes = {
+    'Ungka - ITGSI Loop',
+    'Tagbak - City Proper',
+    'Mandurriao - Jaro Plaza',
+    'Villa Beach - City Proper',
+    'Iloilo Route 4',
+  };
 
   final MapController _mapController = MapController();
   final LocalBusTrackingService _busTracking = LocalBusTrackingService.instance;
@@ -66,14 +74,13 @@ class _CommuterHomeScreenState extends State<CommuterHomeScreen> {
   ];
 
   List<String> _routesFrom(List<ActiveBus> buses) {
-    final routes =
-        buses
-            .where((bus) => bus.isActive)
-            .map((bus) => bus.routeName.trim())
-            .where((route) => route.isNotEmpty)
-            .toSet()
-            .toList()
-          ..sort();
+    final routes = <String>{
+      ..._knownRoutes,
+      ...buses
+          .where((bus) => bus.isActive)
+          .map((bus) => bus.routeName.trim())
+          .where((route) => route.isNotEmpty),
+    }.toList()..sort();
     if (_selectedRoute != _allRoutes && !routes.contains(_selectedRoute)) {
       routes.add(_selectedRoute);
       routes.sort();
@@ -469,6 +476,18 @@ class _CommuterHomeScreenState extends State<CommuterHomeScreen> {
           ),
 
           ListTile(
+            leading: const Icon(Icons.help_outline),
+            title: const Text('FAQs'),
+            onTap: () {
+              Navigator.pop(context);
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const FaqsScreen()),
+              );
+            },
+          ),
+
+          ListTile(
             leading: const Icon(Icons.analytics),
             title: const Text('Analytics'),
             onTap: () {
@@ -658,9 +677,11 @@ class _CommuterHomeScreenState extends State<CommuterHomeScreen> {
                                   tooltip: bus.plateNumber,
                                   onPressed: () =>
                                       _showBusActions(context, bus),
-                                  icon: const Icon(
+                                  icon: Icon(
                                     Icons.directions_bus,
-                                    color: Colors.green,
+                                    color: bus.isFull
+                                        ? Colors.red
+                                        : Colors.green,
                                   ),
                                 ),
                               ),

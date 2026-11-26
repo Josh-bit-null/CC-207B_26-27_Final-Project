@@ -17,6 +17,7 @@ class ActiveBus {
     required this.speedKmh,
     required this.isActive,
     required this.startedAt,
+    this.isFull = false,
   });
 
   final String driverId;
@@ -26,8 +27,14 @@ class ActiveBus {
   final double speedKmh;
   final bool isActive;
   final DateTime startedAt;
+  final bool isFull;
 
-  ActiveBus copyWith({LatLng? position, double? speedKmh, bool? isActive}) {
+  ActiveBus copyWith({
+    LatLng? position,
+    double? speedKmh,
+    bool? isActive,
+    bool? isFull,
+  }) {
     return ActiveBus(
       driverId: driverId,
       plateNumber: plateNumber,
@@ -36,6 +43,7 @@ class ActiveBus {
       speedKmh: speedKmh ?? this.speedKmh,
       isActive: isActive ?? this.isActive,
       startedAt: startedAt,
+      isFull: isFull ?? this.isFull,
     );
   }
 }
@@ -139,6 +147,26 @@ class LocalBusTrackingService {
       );
     }
     return canTrack;
+  }
+
+  void setDriverAvailability({required String driverId, required bool isFull}) {
+    final buses = List<ActiveBus>.from(activeBuses.value);
+    final index = buses.indexWhere(
+      (bus) => bus.driverId == driverId && bus.isActive,
+    );
+    if (index == -1 || buses[index].isFull == isFull) return;
+
+    final bus = buses[index].copyWith(isFull: isFull);
+    buses[index] = bus;
+    activeBuses.value = buses;
+
+    final socket = _socket;
+    if (socket != null && socket.connected) {
+      socket.emit('setAvailability', {
+        'vehicleId': bus.plateNumber,
+        'full': isFull,
+      });
+    }
   }
 
   Future<bool> _startPositionStream({
@@ -293,6 +321,7 @@ class LocalBusTrackingService {
       'lng': bus.position.longitude,
       'speed': bus.speedKmh,
       'heading': 0,
+      'full': bus.isFull,
     });
   }
 
@@ -351,6 +380,7 @@ class LocalBusTrackingService {
       speedKmh: speed is num ? speed.toDouble() : 0,
       isActive: true,
       startedAt: startedAt ?? DateTime.now(),
+      isFull: data['full'] == true,
     );
     _remoteSocketIdsByPlate[vehicleId] = socketId;
     activeBuses.value = [
@@ -430,10 +460,7 @@ class LocalBusTrackingService {
           )
         : null;
     if (completedTrip != null) {
-      completedTrips.value = [
-        completedTrip,
-        ...completedTrips.value,
-      ];
+      completedTrips.value = [completedTrip, ...completedTrips.value];
     }
 
     await _positionSubscription?.cancel();

@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:latlong2/latlong.dart';
+import 'package:audioplayers/audioplayers.dart';
 
 class FirestorePokeService {
   FirestorePokeService._();
@@ -56,7 +57,9 @@ class FirestorePokeService {
       return Stream<int>.value(0);
     }
 
-    
+    final AudioPlayer audioPlayer = AudioPlayer();
+
+    audioPlayer.play(AssetSource('poke_audio.mp3'));
 
     return _firestore
         .collection('poke_counts')

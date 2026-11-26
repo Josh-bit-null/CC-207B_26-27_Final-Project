@@ -7,7 +7,6 @@ class AdminAccountService {
     required String fullName,
     required String email,
     required String password,
-    required String phone,
     required String role,
   }) async {
     await FirebaseFunctions.instanceFor(region: 'us-central1')
@@ -16,7 +15,6 @@ class AdminAccountService {
           'fullName': fullName,
           'email': email,
           'password': password,
-          'phone': phone,
           'role': role,
         });
   }

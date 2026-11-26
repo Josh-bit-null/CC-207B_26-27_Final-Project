@@ -5,18 +5,17 @@ import 'package:final_project_look_out/widgets/popup_notif.dart';
 import '../../../services/admin_account_service.dart';
 import '../../../services/admin_log_service.dart';
 import '../../../widgets/lookout_app_bar.dart';
+import 'create_account_form.dart';
+import 'update_account_form.dart';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:flutter/material.dart';
 
 class AccountsScreen extends StatefulWidget {
-
   final VoidCallback? onMenuPressed;
 
-  const AccountsScreen({
-    super.key,
-    this.onMenuPressed, 
-  });
+  const AccountsScreen({super.key, this.onMenuPressed});
 
   @override
   State<AccountsScreen> createState() => _AccountsScreenState();
@@ -46,7 +45,7 @@ class _AccountsScreenState extends State<AccountsScreen> {
         title: 'User Accounts',
         onMenuPressed: widget.onMenuPressed,
       ),
-      
+
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -464,7 +463,7 @@ Future<void> _handleAccountAction(
 }
 
 Future<void> _createAccount(BuildContext context) async {
-  final values = await _showAccountForm(context);
+  final values = await showCreateAccountForm(context);
   if (values == null || !context.mounted) return;
 
   try {
@@ -472,11 +471,14 @@ Future<void> _createAccount(BuildContext context) async {
       fullName: values.fullName,
       email: values.email,
       password: values.password,
-      phone: values.phone,
       role: values.role,
     );
     if (context.mounted) {
-      PopupNotif(message: 'Account Created.', title: 'Success', type: NotifType.success,).show(context);
+      PopupNotif(
+        message: 'Account Created.',
+        title: 'Success',
+        type: NotifType.success,
+      ).show(context);
     }
   } on FirebaseFunctionsException catch (error) {
     if (context.mounted) {
@@ -490,7 +492,11 @@ Future<void> _createAccount(BuildContext context) async {
     }
   } on FirebaseException catch (error) {
     if (context.mounted) {
-      PopupNotif(message: 'Unable to create account: ${error.message}', title: 'Error', type: NotifType.error,).show(context);
+      PopupNotif(
+        message: 'Unable to create account: ${error.message}',
+        title: 'Error',
+        type: NotifType.error,
+      ).show(context);
     }
   }
 }
@@ -499,16 +505,17 @@ Future<void> _updateAccount(
   BuildContext context,
   QueryDocumentSnapshot<Map<String, dynamic>> account,
 ) async {
-  final values = await _showAccountForm(context, accountData: account.data());
+  final previousData = account.data();
+  final values = await showUpdateAccountForm(
+    context,
+    fullName: previousData['fullName'] as String? ?? '',
+    role: previousData['role'] as String? ?? 'commuter',
+  );
   if (values == null || !context.mounted) return;
 
-  final previousData = account.data();
   final changes = <String>[];
   if (previousData['fullName'] != values.fullName) {
     changes.add('name updated');
-  }
-  if (previousData['phone'] != values.phone) {
-    changes.add('phone updated');
   }
   if (previousData['role'] != values.role) {
     changes.add(
@@ -522,7 +529,6 @@ Future<void> _updateAccount(
   final batch = db.batch();
   batch.update(account.reference, {
     'fullName': values.fullName,
-    'phone': values.phone,
     'role': values.role,
     'updatedAt': FieldValue.serverTimestamp(),
   });
@@ -540,133 +546,21 @@ Future<void> _updateAccount(
   try {
     await batch.commit();
     if (context.mounted) {
-      PopupNotif(message: 'Account updated.', title: 'Success', type:  NotifType.success,).show(context);
+      PopupNotif(
+        message: 'Account updated.',
+        title: 'Success',
+        type: NotifType.success,
+      ).show(context);
     }
   } on FirebaseException catch (error) {
     if (context.mounted) {
-      PopupNotif(message: 'Unable to update account: ${error.message}', title: 'Error', type: NotifType.error,).show(context);
+      PopupNotif(
+        message: 'Unable to update account: ${error.message}',
+        title: 'Error',
+        type: NotifType.error,
+      ).show(context);
     }
   }
-}
-
-Future<_AccountFormData?> _showAccountForm(
-  BuildContext context, {
-  Map<String, dynamic>? accountData,
-}) async {
-  final isEditing = accountData != null;
-  final nameController = TextEditingController(
-    text: accountData?['fullName'] as String? ?? '',
-  );
-  final emailController = TextEditingController(
-    text: accountData?['email'] as String? ?? '',
-  );
-  final phoneController = TextEditingController(
-    text: accountData?['phone'] as String? ?? '',
-  );
-  final passwordController = TextEditingController();
-  final formKey = GlobalKey<FormState>();
-  var role = accountData?['role'] as String? ?? 'commuter';
-
-  final result = await showDialog<_AccountFormData>(
-    context: context,
-    builder: (dialogContext) => StatefulBuilder(
-      builder: (dialogContext, setDialogState) => AlertDialog(
-        title: Text(isEditing ? 'Update account' : 'Create account'),
-        content: SingleChildScrollView(
-          child: Form(
-            key: formKey,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextFormField(
-                  controller: nameController,
-                  decoration: const InputDecoration(labelText: 'Full name'),
-                  validator: (value) => value == null || value.trim().isEmpty
-                      ? 'Enter a name.'
-                      : null,
-                ),
-                if (!isEditing)
-                  TextFormField(
-                    controller: emailController,
-                    keyboardType: TextInputType.emailAddress,
-                    decoration: const InputDecoration(labelText: 'Email'),
-                    validator: (value) =>
-                        value == null ||
-                            !RegExp(r'^[^@]+@[^@]+\.[^@]+$')
-                                .hasMatch(value.trim())
-                        ? 'Enter a valid email address.'
-                        : null,
-                  ),
-                if (!isEditing)
-                  TextFormField(
-                    controller: passwordController,
-                    obscureText: true,
-                    decoration: const InputDecoration(
-                      labelText: 'Initial password',
-                    ),
-                    validator: (value) => value == null || value.length < 6
-                        ? 'Password must be at least 6 characters.'
-                        : null,
-                  ),
-                TextFormField(
-                  controller: phoneController,
-                  keyboardType: TextInputType.phone,
-                  decoration: const InputDecoration(
-                    labelText: 'Phone (optional)',
-                  ),
-                ),
-                DropdownButtonFormField<String>(
-                  initialValue: role,
-                  decoration: const InputDecoration(labelText: 'Role'),
-                  items: const [
-                    DropdownMenuItem(
-                      value: 'commuter',
-                      child: Text('Commuter'),
-                    ),
-                    DropdownMenuItem(value: 'driver', child: Text('Driver')),
-                    DropdownMenuItem(value: 'admin', child: Text('Admin')),
-                  ],
-                  onChanged: (value) {
-                    if (value != null) {
-                      setDialogState(() => role = value);
-                    }
-                  },
-                ),
-              ],
-            ),
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () {
-              if (formKey.currentState?.validate() != true) return;
-              Navigator.pop(
-                dialogContext,
-                _AccountFormData(
-                  fullName: nameController.text.trim(),
-                  email: emailController.text.trim(),
-                  password: passwordController.text,
-                  phone: phoneController.text.trim(),
-                  role: role,
-                ),
-              );
-            },
-            child: Text(isEditing ? 'Save' : 'Create'),
-          ),
-        ],
-      ),
-    ),
-  );
-
-  nameController.dispose();
-  emailController.dispose();
-  phoneController.dispose();
-  passwordController.dispose();
-  return result;
 }
 
 Future<void> _showAccountDetails(
@@ -731,12 +625,11 @@ Future<void> _deleteAccount(
     builder: (dialogContext) => ConfirmationDialog(
       title: 'Delete account?',
       content:
-        'Delete the Firestore profile for '
-        '${account.data()['fullName'] ?? account.id}? '
-        'The Firebase Authentication account may remain and could still sign in.',
+          'Delete the Firestore profile for '
+          '${account.data()['fullName'] ?? account.id}? '
+          'The Firebase Authentication account may remain and could still sign in.',
       confirmText: 'Delete',
     ),
-    
   );
   if (confirmed != true || !context.mounted) return;
 
@@ -747,7 +640,11 @@ Future<void> _deleteAccount(
       email: account.data()['email'] as String? ?? '',
     );
     if (context.mounted) {
-      PopupNotif(message: 'Firestore profile deleted. The Auth account may remain.', title: 'Info', type: NotifType.info,).show(context);
+      PopupNotif(
+        message: 'Firestore profile deleted. The Auth account may remain.',
+        title: 'Info',
+        type: NotifType.info,
+      ).show(context);
     }
   } on FirebaseException catch (error) {
     if (context.mounted) {
@@ -759,21 +656,3 @@ Future<void> _deleteAccount(
     }
   }
 }
-
-class _AccountFormData {
-  const _AccountFormData({
-    required this.fullName,
-    required this.email,
-    required this.password,
-    required this.phone,
-    required this.role,
-  });
-
-  final String fullName;
-  final String email;
-  final String password;
-  final String phone;
-  final String role;
-}
-//updated to be functional - Joshua
-

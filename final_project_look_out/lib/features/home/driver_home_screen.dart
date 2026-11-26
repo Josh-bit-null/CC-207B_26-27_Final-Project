@@ -14,6 +14,7 @@ import '../announcements/announcements_screen.dart';
 import '../driver_exclusive/start_ride/start_ride_screen.dart';
 import '../driver_exclusive/trips/trips_screen.dart';
 import '../driver_exclusive/vehicles/vehicles_screen.dart';
+import '../faqs/faqs_screen.dart';
 import '../landing/landing_screen.dart';
 import '../profile/profile_screen.dart';
 
@@ -23,6 +24,7 @@ import '../../widgets/lookout_app_bar.dart';
 import '../../widgets/lookout_bottom_nav.dart';
 import '../../widgets/lookout_drawer.dart';
 import '../../widgets/congestion_map_layers.dart';
+import '../../widgets/marker_status_floating_button.dart';
 
 //services and packages
 import 'package:flutter/material.dart';
@@ -51,6 +53,7 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
   final FirestorePokeService _pokeService = FirestorePokeService.instance;
   String _activePlate = '';
   bool _isRideActive = false;
+  bool _hasFocusedOnActiveRide = false;
   String? _profileError;
   StreamSubscription<DocumentSnapshot<Map<String, dynamic>>>?
   _profileSubscription;
@@ -79,6 +82,7 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
           (bus) => bus.driverId == uid && bus.isActive,
         );
     _busTracking.activeBuses.addListener(_syncRideState);
+    _syncRideState();
     _loadTrafficForecast();
   }
 
@@ -117,9 +121,54 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
         _busTracking.activeBuses.value.any(
           (bus) => bus.driverId == uid && bus.isActive,
         );
+    if (isActive && !_hasFocusedOnActiveRide) {
+      _hasFocusedOnActiveRide = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        for (final bus in _busTracking.activeBuses.value) {
+          if (bus.driverId == uid && bus.isActive) {
+            _mapController.move(bus.position, 15);
+            break;
+          }
+        }
+      });
+    } else if (!isActive) {
+      _hasFocusedOnActiveRide = false;
+    }
     if (_isRideActive != isActive && mounted) {
       setState(() => _isRideActive = isActive);
     }
+  }
+
+  ActiveBus? _activeDriverPuv() {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) return null;
+    for (final bus in _busTracking.activeBuses.value) {
+      if (bus.driverId == uid && bus.isActive) return bus;
+    }
+    return null;
+  }
+
+  void _toggleDriverPuvAvailability() {
+    final bus = _activeDriverPuv();
+    if (bus == null) return;
+    _busTracking.setDriverAvailability(
+      driverId: bus.driverId,
+      isFull: !bus.isFull,
+    );
+    setState(() {});
+  }
+
+  void _centerOnDriverPuv() {
+    final bus = _activeDriverPuv();
+    if (bus != null) {
+      _mapController.move(bus.position, 15.0);
+      return;
+    }
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Start a ride to center on your PUV.')),
+    );
   }
 
   Future<void> _toggleRide() async {
@@ -280,6 +329,18 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
                 MaterialPageRoute(
                   builder: (context) => const AnnouncementsScreen(),
                 ),
+              );
+            },
+          ),
+
+          ListTile(
+            leading: const Icon(Icons.help_outline),
+            title: const Text('FAQs'),
+            onTap: () {
+              Navigator.pop(context);
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const FaqsScreen()),
               );
             },
           ),
@@ -459,21 +520,18 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
                     valueListenable: _busTracking.activeBuses,
                     builder: (context, buses, child) {
                       return MarkerLayer(
-                        markers: buses
-                            .where((bus) => bus.isActive)
-                            .map(
-                              (bus) => Marker(
-                                point: bus.position,
-                                width: 40,
-                                height: 40,
-                                child: const Icon(
-                                  Icons.directions_bus,
-                                  size: 32,
-                                  color: Colors.green,
-                                ),
-                              ),
-                            )
-                            .toList(),
+                        markers: buses.where((bus) => bus.isActive).map((bus) {
+                          return Marker(
+                            point: bus.position,
+                            width: 40,
+                            height: 40,
+                            child: Icon(
+                              Icons.directions_bus,
+                              size: 32,
+                              color: bus.isFull ? Colors.red : Colors.green,
+                            ),
+                          );
+                        }).toList(),
                       );
                     },
                   ),
@@ -687,12 +745,24 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
       ),
       // Floating Location Button
       floatingActionButton: selectedIndex == 0
-          ? FloatingButton(
-              heroTag: 'driver-home-location',
-              onPressed: () {
-                _mapController.move(_iloiloCenter, 15.0);
-              },
-              icon: Icons.my_location,
+          ? Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                if (_isRideActive) ...[
+                  MarkerStatusFloatingButton(
+                    heroTag: 'driver-puv-status',
+                    isFull: _activeDriverPuv()?.isFull ?? false,
+                    onPressed: _toggleDriverPuvAvailability,
+                  ),
+                  const SizedBox(height: 12),
+                ],
+                FloatingButton(
+                  heroTag: 'driver-home-location',
+                  onPressed: _centerOnDriverPuv,
+                  icon: Icons.my_location,
+                ),
+              ],
             )
           : null,
     );

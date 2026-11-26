@@ -27,6 +27,11 @@ environment:
 # dependencies can be manually updated by changing the version numbers below to
 # the latest version available on pub.dev. To see which dependencies have newer
 # versions available, run `flutter pub outdated`.
+
+flutter_launcher_icons:
+  android: true
+  image_path: "lookOut!_icon.png"
+
 dependencies:
   flutter:
     sdk: flutter
@@ -72,6 +77,7 @@ flutter:
     - assets/images/lookoutBanner.png
     - assets/images/lookoutLogo.svg
     - assets/models/iloilo_traffic_weights.json
+    - assets/audio/poke_audio.mp3
   # The following line ensures that the Material Icons font is
   # included with your application, so that you can use the icons in
   # the material Icons class.

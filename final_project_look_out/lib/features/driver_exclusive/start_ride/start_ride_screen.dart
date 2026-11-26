@@ -293,6 +293,21 @@ class _StartRideScreenState extends State<StartRideScreen> {
           ),
         ),
         const SizedBox(height: 16),
+        Card(
+          child: ListTile(
+            leading: Icon(
+              _isRideActive ? Icons.radio_button_checked : Icons.info_outline,
+              color: _isRideActive ? colors.primary : colors.onSurfaceVariant,
+            ),
+            title: Text(_isRideActive ? 'Ride in progress' : 'Ready to start'),
+            subtitle: Text(
+              _isRideActive && currentBus != null
+                  ? '${currentBus.routeName}\n${currentBus.plateNumber}'
+                  : '${_routes[_selectedRouteId]}\n${selectedPlate.isEmpty ? 'No vehicle selected' : selectedPlate}',
+            ),
+            isThreeLine: true,
+          ),
+        ),
         if (selectedPlate.isNotEmpty) ...[
           const SizedBox(height: 24),
           Text(
