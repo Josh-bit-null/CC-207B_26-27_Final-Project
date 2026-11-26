@@ -142,6 +142,15 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
       routeName: 'Iloilo Route 4',
     );
     setState(() => _isRideActive = true);
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          'Ride started. ${_busTracking.serverConnectionStatus.value}. '
+          'Live sharing will begin when GPS and the connection are ready.',
+        ),
+      ),
+    );
   }
 
   @override
@@ -200,9 +209,7 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
 
               Navigator.push(
                 context,
-                MaterialPageRoute(
-                  builder: (context) => const StartRideScreen(),
-                ),
+                MaterialPageRoute(builder: (context) => const TripsScreen()),
               );
             },
           ),
@@ -215,9 +222,7 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
 
               Navigator.push(
                 context,
-                MaterialPageRoute(
-                  builder: (context) => const StartRideScreen(),
-                ),
+                MaterialPageRoute(builder: (context) => const VehiclesScreen()),
               );
             },
           ),
@@ -436,6 +441,7 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
                                 child: const Icon(
                                   Icons.directions_bus,
                                   size: 32,
+                                  color: Colors.green,
                                 ),
                               ),
                             )
@@ -499,81 +505,127 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
                       borderRadius: BorderRadius.circular(16),
                     ),
                     child: Padding(
-                      padding: const EdgeInsets.all(16.0),
-                      child: Row(
+                      padding: const EdgeInsets.all(12),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          // Route Icon
-                          Container(
-                            padding: const EdgeInsets.all(12),
-                            decoration: BoxDecoration(
-                              color: theme.colorScheme.primaryContainer,
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Icon(
-                              Icons.directions_bus,
-                              color: theme.colorScheme.onPrimaryContainer,
-                            ),
-                          ),
-
-                          const SizedBox(width: 12),
-
-                          // Information Text
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Text(
-                                  'Your Route Overview',
-                                  style: theme.textTheme.titleMedium?.copyWith(
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  'View your route and vehicle position.',
-                                  style: theme.textTheme.bodySmall,
-                                ),
-                                if (_profileError != null)
-                                  Text(
-                                    'Unable to load your driver profile: '
-                                    '$_profileError',
-                                    style: theme.textTheme.bodySmall?.copyWith(
-                                      color: theme.colorScheme.error,
-                                    ),
-                                  ),
-                                const SizedBox(height: 8),
-                                ElevatedButton(
-                                  onPressed: _toggleRide,
-                                  child: Text(
-                                    _isRideActive ? 'End Ride' : 'Start Ride',
-                                  ),
-                                ),
-                                if (_activePlate.isNotEmpty)
-                                  StreamBuilder<int>(
-                                    stream: _pokeService.streamPokeCount(
-                                      _activePlate,
-                                    ),
-                                    builder: (context, snapshot) {
-                                      final count = snapshot.data ?? 0;
-                                      return Row(
-                                        children: [
-                                          Text('Pokes: $count'),
-                                          ElevatedButton(
-                                            onPressed: count == 0
-                                                ? null
-                                                : () => _pokeService
-                                                      .clearAllPokesForPlate(
-                                                        _activePlate,
-                                                      ),
-                                            child: const Text('Clear'),
+                          Row(
+                            children: [
+                              const Icon(
+                                Icons.directions_bus,
+                                color: Colors.green,
+                                size: 28,
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Text(
+                                      'Your Route Overview',
+                                      style: theme.textTheme.titleMedium
+                                          ?.copyWith(
+                                            fontWeight: FontWeight.bold,
                                           ),
-                                        ],
-                                      );
-                                    },
-                                  ),
-                              ],
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      _isRideActive
+                                          ? '$_activePlate is on an active ride.'
+                                          : 'View your route and vehicle position.',
+                                      style: theme.textTheme.bodySmall,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                          if (_profileError != null) ...[
+                            const SizedBox(height: 8),
+                            Text(
+                              'Unable to load your driver profile: $_profileError',
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                color: theme.colorScheme.error,
+                              ),
                             ),
+                          ],
+                          const SizedBox(height: 8),
+                          Wrap(
+                            spacing: 12,
+                            runSpacing: 8,
+                            crossAxisAlignment: WrapCrossAlignment.center,
+                            children: [
+                              ElevatedButton(
+                                onPressed: _toggleRide,
+                                child: Text(
+                                  _isRideActive ? 'End Ride' : 'Start Ride',
+                                ),
+                              ),
+                              if (_activePlate.isNotEmpty)
+                                StreamBuilder<int>(
+                                  stream: _pokeService.streamPokeCount(
+                                    _activePlate,
+                                  ),
+                                  builder: (context, snapshot) {
+                                    if (snapshot.hasError) {
+                                      return Text(
+                                        'Unable to load pokes: ${snapshot.error}',
+                                      );
+                                    }
+                                    if (snapshot.connectionState ==
+                                        ConnectionState.waiting) {
+                                      return const SizedBox(
+                                        width: 20,
+                                        height: 20,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                        ),
+                                      );
+                                    }
+                                    final count = snapshot.data ?? 0;
+                                    return Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        const Icon(
+                                          Icons.notifications_active_outlined,
+                                          color: Colors.green,
+                                        ),
+                                        const SizedBox(width: 8),
+                                        Text('$count'),
+                                        const SizedBox(width: 16),
+                                        ElevatedButton(
+                                          onPressed: count == 0
+                                              ? null
+                                              : () async {
+                                                  try {
+                                                    await _pokeService
+                                                        .clearAllPokesForPlate(
+                                                          _activePlate,
+                                                        );
+                                                  } catch (error) {
+                                                    if (!context.mounted) {
+                                                      return;
+                                                    }
+                                                    ScaffoldMessenger.of(
+                                                      context,
+                                                    ).showSnackBar(
+                                                      SnackBar(
+                                                        content: Text(
+                                                          'Unable to clear pokes: $error',
+                                                        ),
+                                                      ),
+                                                    );
+                                                  }
+                                                },
+                                          child: const Text('Clear'),
+                                        ),
+                                      ],
+                                    );
+                                  },
+                                ),
+                            ],
                           ),
                         ],
                       ),

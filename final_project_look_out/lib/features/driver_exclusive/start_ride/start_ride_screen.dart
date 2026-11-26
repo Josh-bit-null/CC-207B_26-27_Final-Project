@@ -101,7 +101,8 @@ class _StartRideScreenState extends State<StartRideScreen> {
         routeName: _routes[_selectedRouteId]!,
       );
       _showMessage(
-        'Ride started. Your vehicle is being tracked on this device.',
+        'Ride started. ${_tracking.serverConnectionStatus.value}. '
+        'Live sharing will begin when GPS and the connection are ready.',
       );
     } catch (error) {
       _showMessage('Unable to ${_isRideActive ? 'end' : 'start'} ride: $error');

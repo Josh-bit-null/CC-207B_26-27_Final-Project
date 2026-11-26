@@ -4,17 +4,14 @@ import 'package:final_project_look_out/widgets/loader.dart';
 
 import '../../../services/admin_log_service.dart';
 import '../../../widgets/lookout_app_bar.dart';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 
 class FeedbackFaqsScreen extends StatelessWidget {
-
   final VoidCallback? onMenuPressed;
 
-  const FeedbackFaqsScreen({
-    super.key,
-    this.onMenuPressed,  
-  });
+  const FeedbackFaqsScreen({super.key, this.onMenuPressed});
 
   @override
   Widget build(BuildContext context) {
@@ -29,7 +26,7 @@ class FeedbackFaqsScreen extends StatelessWidget {
         title: 'Feedback & FAQs',
         onMenuPressed: onMenuPressed,
       ),
-      
+
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -507,7 +504,10 @@ Future<void> _editFaq(
             ),
             TextFormField(
               controller: answerController,
-              decoration: const InputDecoration(labelText: 'Answer'),
+              decoration: const InputDecoration(
+                labelText: 'Answer',
+                alignLabelWithHint: true,
+              ),
               minLines: 2,
               maxLines: 5,
               validator: (value) => value == null || value.trim().isEmpty

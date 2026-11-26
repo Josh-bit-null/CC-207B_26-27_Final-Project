@@ -1,6 +1,8 @@
 //added poking system ETA and real time PUV tracking - Joshua
 
 //screens
+import 'dart:async';
+
 import 'package:final_project_look_out/features/about/about_screen.dart';
 import 'package:final_project_look_out/features/analytics/analytics_screen.dart';
 import 'package:final_project_look_out/features/announcements/announcements_screen.dart';
@@ -33,7 +35,6 @@ import '../../app/themes/app_colors.dart';
 import '../../services/firestore_poke_service.dart';
 
 class CommuterHomeScreen extends StatefulWidget {
-  
   const CommuterHomeScreen({super.key});
 
   @override
@@ -53,6 +54,8 @@ class _CommuterHomeScreenState extends State<CommuterHomeScreen> {
 
   final CongestionPredictorService _predictor = CongestionPredictorService();
   List<CorridorPrediction> _predictions = [];
+  LatLng? _commuterPosition;
+  StreamSubscription<Position>? _locationSubscription;
 
   // Sample LPTRP route coordinates
   final List<LatLng> _sampleRoutePoints = const [
@@ -62,13 +65,14 @@ class _CommuterHomeScreenState extends State<CommuterHomeScreen> {
   ];
 
   List<String> _routesFrom(List<ActiveBus> buses) {
-    final routes = buses
-        .where((bus) => bus.isActive)
-        .map((bus) => bus.routeName.trim())
-        .where((route) => route.isNotEmpty)
-        .toSet()
-        .toList()
-      ..sort();
+    final routes =
+        buses
+            .where((bus) => bus.isActive)
+            .map((bus) => bus.routeName.trim())
+            .where((route) => route.isNotEmpty)
+            .toSet()
+            .toList()
+          ..sort();
     if (_selectedRoute != _allRoutes && !routes.contains(_selectedRoute)) {
       routes.add(_selectedRoute);
       routes.sort();
@@ -116,7 +120,9 @@ class _CommuterHomeScreenState extends State<CommuterHomeScreen> {
   @override
   void initState() {
     super.initState();
+    _busTracking.connectToServer();
     _loadTrafficForecast();
+    _startLocationUpdates();
   }
 
   Future<void> _loadTrafficForecast() async {
@@ -124,7 +130,9 @@ class _CommuterHomeScreenState extends State<CommuterHomeScreen> {
     if (!mounted) return;
     setState(() => _predictions = results);
   }
-  Future<LatLng> _getCommuterPosition() async {
+
+  Future<LatLng?> _getCommuterPosition() async {
+    if (_commuterPosition != null) return _commuterPosition;
     var permission = await Geolocator.checkPermission();
     if (permission == LocationPermission.denied) {
       permission = await Geolocator.requestPermission();
@@ -132,7 +140,7 @@ class _CommuterHomeScreenState extends State<CommuterHomeScreen> {
     if (permission == LocationPermission.denied ||
         permission == LocationPermission.deniedForever ||
         !await Geolocator.isLocationServiceEnabled()) {
-      return _iloiloCenter;
+      return null;
     }
     final position = await Geolocator.getCurrentPosition(
       locationSettings: const LocationSettings(accuracy: LocationAccuracy.high),
@@ -140,10 +148,75 @@ class _CommuterHomeScreenState extends State<CommuterHomeScreen> {
     return LatLng(position.latitude, position.longitude);
   }
 
+  Future<void> _startLocationUpdates() async {
+    try {
+      final position = await _getCommuterPosition();
+      if (!mounted) return;
+      if (position == null) {
+        _showMessage(
+          'Enable location permission and services to show your location.',
+        );
+        return;
+      }
+      setState(() => _commuterPosition = position);
+      _locationSubscription =
+          Geolocator.getPositionStream(
+            locationSettings: const LocationSettings(
+              accuracy: LocationAccuracy.high,
+              distanceFilter: 5,
+            ),
+          ).listen(
+            (position) {
+              if (mounted) {
+                setState(
+                  () => _commuterPosition = LatLng(
+                    position.latitude,
+                    position.longitude,
+                  ),
+                );
+              }
+            },
+            onError: (Object error) {
+              _showMessage('Unable to update your location: $error');
+            },
+          );
+    } catch (error) {
+      _showMessage('Unable to get your location: $error');
+    }
+  }
+
+  void _showMessage(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  Future<void> _centerOnCommuter() async {
+    try {
+      final position = _commuterPosition ?? await _getCommuterPosition();
+      if (!mounted) return;
+      if (position == null) {
+        _showMessage(
+          'Enable location permission and services to find your location.',
+        );
+        return;
+      }
+      setState(() => _commuterPosition = position);
+      _mapController.move(position, 15.0);
+    } catch (error) {
+      _showMessage('Unable to get your location: $error');
+    }
+  }
+
   Future<void> _showBusActions(BuildContext context, ActiveBus bus) async {
     final dialogContext = context;
     final position = await _getCommuterPosition();
     if (!mounted) return;
+    if (position == null) {
+      _showMessage('Enable location permission and services to calculate ETA.');
+      return;
+    }
     final eta = await _busTracking.calculateLocalEta(
       commuterPosition: position,
       bus: bus,
@@ -182,43 +255,81 @@ class _CommuterHomeScreenState extends State<CommuterHomeScreen> {
   Future<void> _showPokeDialog(ActiveBus bus) async {
     final messageController = TextEditingController(text: 'Please stop here');
     final position = await _getCommuterPosition();
-    if (!mounted) return;
-    await showDialog<void>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('Poke'),
-        content: TextField(controller: messageController),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              Navigator.pop(dialogContext);
-              await _pokeService.sendPoke(
-                toPlate: bus.plateNumber,
-                routeId: bus.routeName,
-                location: position,
-                message: messageController.text.trim(),
-              );
-            },
-            child: const Text('Send Poke'),
-          ),
-        ],
-      ),
-    );
-    messageController.dispose();
+    if (!mounted) {
+      messageController.dispose();
+      return;
+    }
+    if (position == null) {
+      messageController.dispose();
+      _showMessage(
+        'Enable location permission and services before sending a poke.',
+      );
+      return;
+    }
+    try {
+      await showDialog<void>(
+        context: context,
+        builder: (dialogContext) {
+          var isSending = false;
+          return StatefulBuilder(
+            builder: (context, setDialogState) => AlertDialog(
+              title: const Text('Poke'),
+              content: TextField(controller: messageController),
+              actions: [
+                TextButton(
+                  onPressed: isSending
+                      ? null
+                      : () => Navigator.pop(dialogContext),
+                  child: const Text('Cancel'),
+                ),
+                ElevatedButton(
+                  onPressed: isSending
+                      ? null
+                      : () async {
+                          setDialogState(() => isSending = true);
+                          try {
+                            await _pokeService.sendPoke(
+                              toPlate: bus.plateNumber,
+                              routeId: bus.routeName,
+                              location: position,
+                              message: messageController.text.trim(),
+                            );
+                            if (!dialogContext.mounted) return;
+                            Navigator.pop(dialogContext);
+                            _showMessage('Poke sent.');
+                          } catch (error) {
+                            if (dialogContext.mounted) {
+                              setDialogState(() => isSending = false);
+                            }
+                            _showMessage('Unable to send poke: $error');
+                          }
+                        },
+                  child: isSending
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Text('Send Poke'),
+                ),
+              ],
+            ),
+          );
+        },
+      );
+    } finally {
+      messageController.dispose();
+    }
   }
 
   @override
   void dispose() {
+    _locationSubscription?.cancel();
     _mapController.dispose();
     super.dispose();
   }
 
-  final GlobalKey<ScaffoldState> _scaffoldKey =
-    GlobalKey<ScaffoldState>();
+  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
 
   int selectedIndex = 0;
 
@@ -230,11 +341,11 @@ class _CommuterHomeScreenState extends State<CommuterHomeScreen> {
       // App Bar
       appBar: selectedIndex == 0
           ? LookOutAppBar(
-            title: 'Commuter Dashboard',
-            onMenuPressed: () {
-              _scaffoldKey.currentState?.openDrawer();
-            },
-          )
+              title: 'Commuter Dashboard',
+              onMenuPressed: () {
+                _scaffoldKey.currentState?.openDrawer();
+              },
+            )
           : null,
 
       key: _scaffoldKey,
@@ -244,7 +355,7 @@ class _CommuterHomeScreenState extends State<CommuterHomeScreen> {
           child: Image.asset('assets/images/lookoutBanner.png', height: 60),
         ),
         items: [
-           ListTile(
+          ListTile(
             leading: const Icon(Icons.person),
             title: const Text('Profile'),
             onTap: () {
@@ -252,11 +363,13 @@ class _CommuterHomeScreenState extends State<CommuterHomeScreen> {
 
               Navigator.push(
                 context,
-                MaterialPageRoute(builder: (context) => const ProfileScreen(
-                  name: 'Commuter',
-                  email: 'commuter@lookout.ph',
-                  role: 'commuter',
-                )),
+                MaterialPageRoute(
+                  builder: (context) => const ProfileScreen(
+                    name: 'Commuter',
+                    email: 'commuter@lookout.ph',
+                    role: 'commuter',
+                  ),
+                ),
               );
             },
           ),
@@ -287,7 +400,7 @@ class _CommuterHomeScreenState extends State<CommuterHomeScreen> {
             },
           ),
 
-           ListTile(
+          ListTile(
             leading: const Icon(Icons.announcement),
             title: const Text('Announcements'),
             onTap: () {
@@ -295,12 +408,14 @@ class _CommuterHomeScreenState extends State<CommuterHomeScreen> {
 
               Navigator.push(
                 context,
-                MaterialPageRoute(builder: (context) => const AnnouncementsScreen()),
+                MaterialPageRoute(
+                  builder: (context) => const AnnouncementsScreen(),
+                ),
               );
             },
           ),
 
-           ListTile(
+          ListTile(
             leading: const Icon(Icons.analytics),
             title: const Text('Analytics'),
             onTap: () {
@@ -308,12 +423,14 @@ class _CommuterHomeScreenState extends State<CommuterHomeScreen> {
 
               Navigator.push(
                 context,
-                MaterialPageRoute(builder: (context) => const AnalyticsScreen()),
+                MaterialPageRoute(
+                  builder: (context) => const AnalyticsScreen(),
+                ),
               );
             },
           ),
 
-           ListTile(
+          ListTile(
             leading: const Icon(Icons.info),
             title: const Text('About'),
             onTap: () {
@@ -384,7 +501,6 @@ class _CommuterHomeScreenState extends State<CommuterHomeScreen> {
         },
 
         destinations: const [
-
           NavigationDestination(
             icon: Icon(Icons.home_outlined),
             selectedIcon: Icon(Icons.home),
@@ -395,7 +511,7 @@ class _CommuterHomeScreenState extends State<CommuterHomeScreen> {
             selectedIcon: Icon(Icons.emoji_transportation),
             label: 'Rides',
           ),
-           NavigationDestination(
+          NavigationDestination(
             icon: Icon(Icons.save_outlined),
             selectedIcon: Icon(Icons.save),
             label: 'Saved',
@@ -483,13 +599,16 @@ class _CommuterHomeScreenState extends State<CommuterHomeScreen> {
                             .map(
                               (bus) => Marker(
                                 point: bus.position,
-                                width: 48,
-                                height: 48,
+                                width: 60,
+                                height: 60,
                                 child: IconButton(
                                   tooltip: bus.plateNumber,
                                   onPressed: () =>
                                       _showBusActions(context, bus),
-                                  icon: const Icon(Icons.directions_bus),
+                                  icon: const Icon(
+                                    Icons.directions_bus,
+                                    color: Colors.green,
+                                  ),
                                 ),
                               ),
                             )
@@ -497,6 +616,33 @@ class _CommuterHomeScreenState extends State<CommuterHomeScreen> {
                       );
                     },
                   ),
+
+                  if (_commuterPosition != null)
+                    MarkerLayer(
+                      markers: [
+                        Marker(
+                          point: _commuterPosition!,
+                          width: 110,
+                          height: 64,
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(
+                                Icons.person_pin_circle,
+                                color: Colors.blue,
+                                size: 36,
+                              ),
+                              Text(
+                                'Your location',
+                                style: theme.textTheme.labelSmall?.copyWith(
+                                  backgroundColor: theme.colorScheme.surface,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
 
                   // 4. OpenStreetMap Attribution
                   const RichAttributionWidget(
@@ -553,6 +699,15 @@ class _CommuterHomeScreenState extends State<CommuterHomeScreen> {
                                   'View routes and nearby public vehicles.',
                                   style: theme.textTheme.bodySmall,
                                 ),
+                                const SizedBox(height: 4),
+                                ValueListenableBuilder<String>(
+                                  valueListenable:
+                                      _busTracking.serverConnectionStatus,
+                                  builder: (context, status, child) => Text(
+                                    status,
+                                    style: theme.textTheme.bodySmall,
+                                  ),
+                                ),
                               ],
                             ),
                           ),
@@ -565,28 +720,28 @@ class _CommuterHomeScreenState extends State<CommuterHomeScreen> {
             ],
           ),
 
-            RidesScreen(
-              onMenuPressed: () {
-                _scaffoldKey.currentState?.openDrawer();
-              },
-            ),
-            SavedScreen(
-              onMenuPressed: () {
-                _scaffoldKey.currentState?.openDrawer();
-              },
-            ),
-            AnalyticsScreen(
-              onMenuPressed: () {
-                _scaffoldKey.currentState?.openDrawer();
-              },
-            ),
-            AnnouncementsScreen(
-               onMenuPressed: () {
-                _scaffoldKey.currentState?.openDrawer();
-              },
-            ),
-          ],
-        ),
+          RidesScreen(
+            onMenuPressed: () {
+              _scaffoldKey.currentState?.openDrawer();
+            },
+          ),
+          SavedScreen(
+            onMenuPressed: () {
+              _scaffoldKey.currentState?.openDrawer();
+            },
+          ),
+          AnalyticsScreen(
+            onMenuPressed: () {
+              _scaffoldKey.currentState?.openDrawer();
+            },
+          ),
+          AnnouncementsScreen(
+            onMenuPressed: () {
+              _scaffoldKey.currentState?.openDrawer();
+            },
+          ),
+        ],
+      ),
       floatingActionButton: selectedIndex == 0
           ? Column(
               mainAxisSize: MainAxisSize.min,
@@ -606,9 +761,7 @@ class _CommuterHomeScreenState extends State<CommuterHomeScreen> {
                 const SizedBox(height: 12),
                 FloatingButton(
                   heroTag: 'commuter-home-location',
-                  onPressed: () {
-                    _mapController.move(_iloiloCenter, 15.0);
-                  },
+                  onPressed: _centerOnCommuter,
                   icon: Icons.my_location,
                 ),
               ],

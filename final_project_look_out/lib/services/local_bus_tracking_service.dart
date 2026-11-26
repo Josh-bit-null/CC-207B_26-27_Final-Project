@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart';
+import 'package:socket_io_client/socket_io_client.dart' as socket_io;
 
 import 'congestion_predictor_service.dart';
 
@@ -60,14 +61,22 @@ class LocalBusTrackingService {
   LocalBusTrackingService._();
 
   static final LocalBusTrackingService instance = LocalBusTrackingService._();
+  static const String _socketUrl = 'https://lookout-p8fw.onrender.com';
 
   final ValueNotifier<List<ActiveBus>> activeBuses =
       ValueNotifier<List<ActiveBus>>(<ActiveBus>[]);
   final ValueNotifier<List<DriverTrip>> completedTrips =
       ValueNotifier<List<DriverTrip>>(<DriverTrip>[]);
+  final ValueNotifier<String> serverConnectionStatus = ValueNotifier<String>(
+    'Not connected',
+  );
 
+  socket_io.Socket? _socket;
   StreamSubscription<Position>? _positionSubscription;
   Timer? _simulationTimer;
+  final Set<String> _localDriverIds = <String>{};
+  final Set<String> _driversWithGps = <String>{};
+  final Map<String, String> _remoteSocketIdsByPlate = <String, String>{};
   final List<LatLng> _waypoints = const [
     LatLng(10.7495, 122.5432),
     LatLng(10.7258, 122.5572),
@@ -81,6 +90,8 @@ class LocalBusTrackingService {
     required String routeName,
   }) async {
     _stopRide(driverId, recordTrip: false);
+    _localDriverIds.add(driverId);
+    _driversWithGps.remove(driverId);
 
     final initialBus = ActiveBus(
       driverId: driverId,
@@ -95,6 +106,8 @@ class LocalBusTrackingService {
       ..removeWhere((bus) => bus.driverId == driverId)
       ..add(initialBus);
     activeBuses.value = buses;
+    connectToServer();
+    _emitLocation(initialBus);
 
     final canTrack = await _startPositionStream(
       driverId: driverId,
@@ -134,6 +147,7 @@ class LocalBusTrackingService {
           ),
         ).listen(
           (position) {
+            _driversWithGps.add(driverId);
             _updateBus(
               driverId: driverId,
               plateNumber: plateNumber,
@@ -201,6 +215,155 @@ class LocalBusTrackingService {
       );
     }
     activeBuses.value = buses;
+    if (_driversWithGps.contains(driverId)) {
+      final updatedBus = buses.firstWhere((bus) => bus.driverId == driverId);
+      _emitLocation(updatedBus);
+    }
+  }
+
+  void connectToServer() {
+    if (_socket != null) return;
+
+    serverConnectionStatus.value = 'Connecting to live PUV service';
+    final socket = socket_io.io(_socketUrl, <String, dynamic>{
+      'transports': <String>['websocket'],
+      'autoConnect': false,
+      'reconnection': true,
+      'reconnectionDelay': 1000,
+      'reconnectionDelayMax': 10000,
+      'timeout': 20000,
+    });
+    _socket = socket;
+
+    socket.onConnect((_) {
+      serverConnectionStatus.value = 'Connected to live PUV service';
+      for (final bus in activeBuses.value) {
+        _emitLocation(bus);
+      }
+    });
+    socket.onDisconnect((_) {
+      serverConnectionStatus.value = 'Reconnecting to live PUV service';
+    });
+    socket.onConnectError((error) {
+      serverConnectionStatus.value = 'Unable to connect to live PUV service';
+    });
+    socket.on('activeDrivers', _handleActiveDrivers);
+    socket.on('driverMoved', _handleDriverMoved);
+    socket.on('driverDisconnected', _handleDriverDisconnected);
+    socket.on('invalidPayload', (payload) {
+      final data = _socketMap(payload);
+      final reason = data?['reason']?.toString() ?? 'Invalid location update';
+      serverConnectionStatus.value = 'Live PUV update rejected: $reason';
+    });
+    socket.connect();
+  }
+
+  void _emitLocation(ActiveBus bus) {
+    final socket = _socket;
+    if (socket == null ||
+        !socket.connected ||
+        !_driversWithGps.contains(bus.driverId)) {
+      return;
+    }
+    socket.emit('updateLocation', <String, dynamic>{
+      'vehicleId': bus.plateNumber,
+      'routeId': bus.routeName,
+      'lat': bus.position.latitude,
+      'lng': bus.position.longitude,
+      'speed': bus.speedKmh,
+      'heading': 0,
+    });
+  }
+
+  void _handleActiveDrivers(dynamic payload) {
+    if (payload is! List) return;
+    activeBuses.value = activeBuses.value
+        .where((bus) => _localDriverIds.contains(bus.driverId))
+        .toList();
+    _remoteSocketIdsByPlate.clear();
+    for (final record in payload) {
+      _upsertRemoteDriver(record);
+    }
+  }
+
+  void _handleDriverMoved(dynamic payload) {
+    _upsertRemoteDriver(payload);
+  }
+
+  void _upsertRemoteDriver(dynamic payload) {
+    final data = _socketMap(payload);
+    if (data == null) return;
+    final vehicleId = data['vehicleId'];
+    final socketId = data['socketId'];
+    final latitude = data['lat'];
+    final longitude = data['lng'];
+    if (vehicleId is! String ||
+        vehicleId.isEmpty ||
+        socketId is! String ||
+        latitude is! num ||
+        longitude is! num) {
+      return;
+    }
+
+    if (activeBuses.value.any(
+      (bus) =>
+          _localDriverIds.contains(bus.driverId) &&
+          bus.plateNumber == vehicleId,
+    )) {
+      return;
+    }
+
+    DateTime? startedAt;
+    for (final bus in activeBuses.value) {
+      if (bus.plateNumber == vehicleId) {
+        startedAt = bus.startedAt;
+        break;
+      }
+    }
+    final speed = data['speed'];
+    final routeId = data['routeId'];
+    final remoteBus = ActiveBus(
+      driverId: socketId,
+      plateNumber: vehicleId,
+      routeName: routeId is String ? routeId : 'Unknown route',
+      position: LatLng(latitude.toDouble(), longitude.toDouble()),
+      speedKmh: speed is num ? speed.toDouble() : 0,
+      isActive: true,
+      startedAt: startedAt ?? DateTime.now(),
+    );
+    _remoteSocketIdsByPlate[vehicleId] = socketId;
+    activeBuses.value = [
+      ...activeBuses.value.where(
+        (bus) => bus.driverId != socketId && bus.plateNumber != vehicleId,
+      ),
+      remoteBus,
+    ];
+  }
+
+  void _handleDriverDisconnected(dynamic payload) {
+    final data = _socketMap(payload);
+    final vehicleId = data?['vehicleId'];
+    if (vehicleId is! String || vehicleId.isEmpty) return;
+    final socketId = _remoteSocketIdsByPlate.remove(vehicleId);
+    if (_localDriverIds.any(
+      (driverId) => activeBuses.value.any(
+        (bus) => bus.driverId == driverId && bus.plateNumber == vehicleId,
+      ),
+    )) {
+      return;
+    }
+    activeBuses.value = activeBuses.value
+        .where(
+          (bus) =>
+              bus.plateNumber != vehicleId ||
+              (socketId != null && bus.driverId != socketId),
+        )
+        .toList();
+  }
+
+  Map<String, dynamic>? _socketMap(dynamic value) {
+    if (value is! Map) return null;
+    return Map<String, dynamic>.from(value);
   }
 
   void stopRide(String driverId) {
@@ -213,6 +376,14 @@ class LocalBusTrackingService {
       if (bus.driverId == driverId) {
         activeBus = bus;
         break;
+      }
+    }
+    if (activeBus != null) {
+      final socket = _socket;
+      if (socket != null && socket.connected) {
+        socket.emit('endTrip', <String, dynamic>{
+          'vehicleId': activeBus.plateNumber,
+        });
       }
     }
     if (recordTrip && activeBus != null) {
@@ -232,6 +403,8 @@ class LocalBusTrackingService {
     _positionSubscription = null;
     _simulationTimer?.cancel();
     _simulationTimer = null;
+    _localDriverIds.remove(driverId);
+    _driversWithGps.remove(driverId);
     activeBuses.value = activeBuses.value
         .where((bus) => bus.driverId != driverId)
         .toList();

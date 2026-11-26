@@ -372,7 +372,7 @@ class _LandingScreenState extends State<LandingScreen> {
 
                                           // TAB CONTENT
                                           SizedBox(
-                                            height: 290,
+                                            height: 410,
                                             child: TabBarView(
                                               children: [
                                                 // COMMUTER LOGIN
@@ -539,125 +539,121 @@ class _LandingScreenState extends State<LandingScreen> {
 
     return Form(
       key: _signupFormKey,
-      child: SingleChildScrollView(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Text(
-              'Create an Account',
-              style: theme.textTheme.titleLarge?.copyWith(
-                fontWeight: FontWeight.bold,
-                color: colors.onSurface,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(
+            'Create an Account',
+            style: theme.textTheme.titleLarge?.copyWith(
+              fontWeight: FontWeight.bold,
+              color: colors.onSurface,
+            ),
+          ),
+
+          const SizedBox(height: 6),
+
+          Text(
+            'Choose your account type and enter your details.',
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: colors.onSurfaceVariant,
+            ),
+          ),
+
+          const SizedBox(height: 16),
+
+          // ROLE SELECTION
+          SegmentedButton<String>(
+            segments: const [
+              ButtonSegment(
+                value: 'commuter',
+                label: Text('Commuter'),
+                icon: Icon(Icons.person_outline),
               ),
-            ),
-
-            const SizedBox(height: 6),
-
-            Text(
-              'Choose your account type and enter your details.',
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: colors.onSurfaceVariant,
+              ButtonSegment(
+                value: 'driver',
+                label: Text('Driver'),
+                icon: Icon(Icons.directions_bus_outlined),
               ),
+            ],
+            selected: {_signupRole},
+            onSelectionChanged: (selection) {
+              setState(() {
+                _signupRole = selection.first;
+              });
+            },
+          ),
+
+          const SizedBox(height: 16),
+
+          // FULL NAME
+          TextFormField(
+            controller: _signupNameCtrl,
+            decoration: _inputDecoration(
+              context,
+              label: 'Full Name',
+              icon: Icons.badge_outlined,
             ),
+            validator: (val) =>
+                (val == null || val.trim().isEmpty) ? 'Enter your name' : null,
+          ),
 
-            const SizedBox(height: 16),
+          const SizedBox(height: 12),
 
-            // ROLE SELECTION
-            SegmentedButton<String>(
-              segments: const [
-                ButtonSegment(
-                  value: 'commuter',
-                  label: Text('Commuter'),
-                  icon: Icon(Icons.person_outline),
-                ),
-                ButtonSegment(
-                  value: 'driver',
-                  label: Text('Driver'),
-                  icon: Icon(Icons.directions_bus_outlined),
-                ),
-              ],
-              selected: {_signupRole},
-              onSelectionChanged: (selection) {
-                setState(() {
-                  _signupRole = selection.first;
-                });
-              },
+          // EMAIL
+          TextFormField(
+            controller: _signupEmailCtrl,
+            keyboardType: TextInputType.emailAddress,
+            decoration: _inputDecoration(
+              context,
+              label: 'Email',
+              icon: Icons.email_outlined,
             ),
+            validator: (val) => (val == null || !val.contains('@'))
+                ? 'Enter a valid email'
+                : null,
+          ),
 
-            const SizedBox(height: 16),
+          const SizedBox(height: 12),
 
-            // FULL NAME
-            TextFormField(
-              controller: _signupNameCtrl,
-              decoration: _inputDecoration(
-                context,
-                label: 'Full Name',
-                icon: Icons.badge_outlined,
-              ),
-              validator: (val) => (val == null || val.trim().isEmpty)
-                  ? 'Enter your name'
-                  : null,
-            ),
-
-            const SizedBox(height: 12),
-
-            // EMAIL
-            TextFormField(
-              controller: _signupEmailCtrl,
-              keyboardType: TextInputType.emailAddress,
-              decoration: _inputDecoration(
-                context,
-                label: 'Email',
-                icon: Icons.email_outlined,
-              ),
-              validator: (val) => (val == null || !val.contains('@'))
-                  ? 'Enter a valid email'
-                  : null,
-            ),
-
-            const SizedBox(height: 12),
-
-            // PASSWORD
-            TextFormField(
-              controller: _signupPassCtrl,
-              obscureText: _obscurePassword,
-              decoration:
-                  _inputDecoration(
-                    context,
-                    label: 'Password (min 6 chars)',
-                    icon: Icons.lock_outline,
-                  ).copyWith(
-                    suffixIcon: IconButton(
-                      tooltip: _obscurePassword
-                          ? 'Show password'
-                          : 'Hide password',
-                      icon: Icon(
-                        _obscurePassword
-                            ? Icons.visibility_off_outlined
-                            : Icons.visibility_outlined,
-                      ),
-                      onPressed: () {
-                        setState(() {
-                          _obscurePassword = !_obscurePassword;
-                        });
-                      },
+          // PASSWORD
+          TextFormField(
+            controller: _signupPassCtrl,
+            obscureText: _obscurePassword,
+            decoration:
+                _inputDecoration(
+                  context,
+                  label: 'Password (min 6 chars)',
+                  icon: Icons.lock_outline,
+                ).copyWith(
+                  suffixIcon: IconButton(
+                    tooltip: _obscurePassword
+                        ? 'Show password'
+                        : 'Hide password',
+                    icon: Icon(
+                      _obscurePassword
+                          ? Icons.visibility_off_outlined
+                          : Icons.visibility_outlined,
                     ),
+                    onPressed: () {
+                      setState(() {
+                        _obscurePassword = !_obscurePassword;
+                      });
+                    },
                   ),
-              validator: (val) => (val == null || val.length < 6)
-                  ? 'Minimum 6 characters'
-                  : null,
-            ),
+                ),
+            validator: (val) =>
+                (val == null || val.length < 6) ? 'Minimum 6 characters' : null,
+          ),
 
-            const SizedBox(height: 20),
+          const SizedBox(height: 20),
 
-            // CREATE ACCOUNT BUTTON
-            _gradientButton(
-              label:
-                  'Create ${_signupRole == 'commuter' ? 'Commuter' : 'Driver'} Account',
-              onPressed: _handleSignup,
-            ),
-          ],
-        ),
+          // CREATE ACCOUNT BUTTON
+          _gradientButton(
+            label:
+                'Create ${_signupRole == 'commuter' ? 'Commuter' : 'Driver'} Account',
+            onPressed: _handleSignup,
+          ),
+        ],
       ),
     );
   }
