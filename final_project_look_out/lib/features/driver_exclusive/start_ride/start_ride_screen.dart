@@ -293,15 +293,6 @@ class _StartRideScreenState extends State<StartRideScreen> {
           ),
         ),
         const SizedBox(height: 16),
-        Card(
-          child: ListTile(
-            leading: Icon(
-              _isRideActive ? Icons.radio_button_checked : Icons.info_outline,
-              color: _isRideActive ? colors.primary : colors.onSurfaceVariant,
-            ),
-            isThreeLine: true,
-          ),
-        ),
         if (selectedPlate.isNotEmpty) ...[
           const SizedBox(height: 24),
           Text(

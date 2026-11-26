@@ -49,10 +49,15 @@ class FirestorePokeService {
     await batch.commit();
   }
 
+
+  // on Driver side, add poke count
   Stream<int> streamPokeCount(String activePlate) {
     if (activePlate.isEmpty) {
       return Stream<int>.value(0);
     }
+
+    
+
     return _firestore
         .collection('poke_counts')
         .doc(activePlate)
