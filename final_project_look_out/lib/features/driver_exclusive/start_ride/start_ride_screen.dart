@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:final_project_look_out/widgets/loader.dart';
+import 'package:final_project_look_out/widgets/popup_notif.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
@@ -80,12 +81,12 @@ class _StartRideScreenState extends State<StartRideScreen> {
     try {
       if (_isRideActive) {
         _tracking.stopRide(uid);
-        _showMessage('Ride ended. Trip was added to this session’s history.');
+        _showMessage('Ride ended. Trip was added to this session’s history.', 'Info', NotifType.info);
         return;
       }
 
       if (plate.isEmpty) {
-        _showMessage('Add a vehicle plate in My Vehicles first.');
+        _showMessage('Add a vehicle plate in My Vehicles first.', 'Warning', NotifType.warning);
         return;
       }
 
@@ -105,16 +106,15 @@ class _StartRideScreenState extends State<StartRideScreen> {
         'Live sharing will begin when GPS and the connection are ready.',
       );
     } catch (error) {
-      _showMessage('Unable to ${_isRideActive ? 'end' : 'start'} ride: $error');
+      _showMessage('Unable to ${_isRideActive ? 'end' : 'start'} ride: $error', 'Error', NotifType.error);
     } finally {
       if (mounted) setState(() => _isBusy = false);
     }
   }
 
-  void _showMessage(String message) {
+  void _showMessage(String message, String title, NotifType type) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context)
-        .showSnackBar(SnackBar(content: Text(message)));
+    PopupNotif(message: message, title: title, type: type).show(context);
   }
 
   List<String> _platesFrom(Map<String, dynamic>? profile) {

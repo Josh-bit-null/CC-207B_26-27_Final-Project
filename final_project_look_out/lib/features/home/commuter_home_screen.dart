@@ -22,6 +22,8 @@ import '../../widgets/lookout_drawer.dart';
 import '../../widgets/congestion_map_layers.dart';
 
 //services and packages
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:geolocator/geolocator.dart';
@@ -47,6 +49,8 @@ class _CommuterHomeScreenState extends State<CommuterHomeScreen> {
   final MapController _mapController = MapController();
   final LocalBusTrackingService _busTracking = LocalBusTrackingService.instance;
   final FirestorePokeService _pokeService = FirestorePokeService.instance;
+  StreamSubscription<Position>? _locationSubscription;
+  LatLng? _commuterPosition;
   String _selectedRoute = _allRoutes;
 
   // Iloilo City Proper coordinates
@@ -80,36 +84,73 @@ class _CommuterHomeScreenState extends State<CommuterHomeScreen> {
     return routes;
   }
 
+  List<ActiveBus> _mergeBuses(
+    List<ActiveBus> remoteBuses,
+    List<ActiveBus> localBuses,
+  ) {
+    final busesByDriver = {for (final bus in remoteBuses) bus.driverId: bus};
+    for (final bus in localBuses) {
+      busesByDriver[bus.driverId] = bus;
+    }
+    return busesByDriver.values.toList();
+  }
+
   Future<void> _showRouteFilter() async {
-    final routes = _routesFrom(_busTracking.activeBuses.value);
     final selectedRoute = await showModalBottomSheet<String>(
       context: context,
       builder: (sheetContext) => SafeArea(
-        child: ListView(
-          shrinkWrap: true,
-          padding: const EdgeInsets.symmetric(vertical: 8),
-          children: [
-            const ListTile(title: Text('Select route')),
-            ListTile(
-              leading: Icon(
-                _selectedRoute == _allRoutes
-                    ? Icons.radio_button_checked
-                    : Icons.radio_button_unchecked,
-              ),
-              title: const Text('All routes'),
-              onTap: () => Navigator.pop(sheetContext, _allRoutes),
-            ),
-            for (final route in routes)
-              ListTile(
-                leading: Icon(
-                  _selectedRoute == route
-                      ? Icons.radio_button_checked
-                      : Icons.radio_button_unchecked,
-                ),
-                title: Text(route),
-                onTap: () => Navigator.pop(sheetContext, route),
-              ),
-          ],
+        child: StreamBuilder<List<ActiveBus>>(
+          stream: _busTracking.remoteActiveBuses,
+          builder: (context, remoteSnapshot) {
+            return ValueListenableBuilder<List<ActiveBus>>(
+              valueListenable: _busTracking.activeBuses,
+              builder: (context, localBuses, child) {
+                final routes = _routesFrom(
+                  _mergeBuses(
+                    remoteSnapshot.data ?? const <ActiveBus>[],
+                    localBuses,
+                  ),
+                );
+                return ListView(
+                  shrinkWrap: true,
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  children: [
+                    const ListTile(title: Text('Select route')),
+                    ListTile(
+                      leading: Icon(
+                        _selectedRoute == _allRoutes
+                            ? Icons.radio_button_checked
+                            : Icons.radio_button_unchecked,
+                      ),
+                      title: const Text('All routes'),
+                      onTap: () => Navigator.pop(sheetContext, _allRoutes),
+                    ),
+                    if (remoteSnapshot.hasError)
+                      ListTile(
+                        title: Text(
+                          'Unable to load remote routes: '
+                          '${remoteSnapshot.error}',
+                        ),
+                      ),
+                    if (remoteSnapshot.connectionState ==
+                            ConnectionState.waiting &&
+                        routes.isEmpty)
+                      const ListTile(title: Text('Loading active routes...')),
+                    for (final route in routes)
+                      ListTile(
+                        leading: Icon(
+                          _selectedRoute == route
+                              ? Icons.radio_button_checked
+                              : Icons.radio_button_unchecked,
+                        ),
+                        title: Text(route),
+                        onTap: () => Navigator.pop(sheetContext, route),
+                      ),
+                  ],
+                );
+              },
+            );
+          },
         ),
       ),
     );
@@ -382,7 +423,14 @@ class _CommuterHomeScreenState extends State<CommuterHomeScreen> {
 
               Navigator.push(
                 context,
-                MaterialPageRoute(builder: (context) => const RidesScreen()),
+                MaterialPageRoute(
+                  builder: (context) => RidesScreen(
+                    onShowMap: () async {
+                      Navigator.pop(context);
+                      await _showCommuterMap();
+                    },
+                  ),
+                ),
               );
             },
           ),
@@ -451,7 +499,7 @@ class _CommuterHomeScreenState extends State<CommuterHomeScreen> {
                 context: context,
                 builder: (context) => const ConfirmationDialog(
                   title: 'Log Out',
-                  message: 'Are you sure you want to log out?',
+                  content: 'Are you sure you want to log out?',
                   confirmText: 'Log Out',
                 ),
               );
@@ -477,6 +525,7 @@ class _CommuterHomeScreenState extends State<CommuterHomeScreen> {
                 PopupNotif(
                   title: 'Success',
                   message: 'You have successfully logged out.',
+                  type: NotifType.success,
                 ).show(context);
               } catch (e) {
                 if (!context.mounted) return;
@@ -484,6 +533,7 @@ class _CommuterHomeScreenState extends State<CommuterHomeScreen> {
                 PopupNotif(
                   title: 'Error',
                   message: 'Failed to log out. Please try again.',
+                  type: NotifType.error,
                 ).show(context);
               }
             },
@@ -560,14 +610,12 @@ class _CommuterHomeScreenState extends State<CommuterHomeScreen> {
                       isDriverView:
                           false, // Set to true in driver_home_screen.dart!
                       onTapCorridor: (corridor) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text(
+                        PopupNotif(
+                          message:
                               '${corridor.name}: ${corridor.label} '
                               '(${(corridor.confidence * 100).toStringAsFixed(0)}% AI confidence, '
                               'Rain: ${_predictor.currentRainMm} mm)',
-                            ),
-                          ),
+                          type: NotifType.info,
                         );
                       },
                     ),

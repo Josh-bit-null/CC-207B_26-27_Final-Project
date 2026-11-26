@@ -158,7 +158,7 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
                 context: context,
                 builder: (context) => const ConfirmationDialog(
                   title: 'Log Out',
-                  message: 'Are you sure you want to log out?',
+                  content: 'Are you sure you want to log out?',
                   confirmText: 'Log Out',
                 ),
               );
@@ -184,6 +184,7 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
                 PopupNotif(
                   title: 'Success',
                   message: 'You have successfully logged out.',
+                  type: NotifType.success,
                 ).show(context);
               } catch (e) {
                 if (!context.mounted) return;
@@ -191,6 +192,7 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
                 PopupNotif(
                   title: 'Error',
                   message: 'Failed to log out. Please try again.',
+                  type: NotifType.error,
                 ).show(context);
               }
             },

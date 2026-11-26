@@ -2,7 +2,9 @@ import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:final_project_look_out/widgets/confirmation_dialog.dart';
 import 'package:final_project_look_out/widgets/loader.dart';
+import 'package:final_project_look_out/widgets/popup_notif.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
@@ -39,9 +41,11 @@ class _CommuterRideTracker {
   final Map<String, double> _busHeadings = {};
 
   StreamSubscription<Position>? _positionSubscription;
+  StreamSubscription<List<ActiveBus>>? _remoteBusSubscription;
   StreamSubscription<User?>? _authSubscription;
   Future<void>? _startFuture;
   LatLng? _commuterPosition;
+  List<ActiveBus> _remoteBuses = [];
   String? _uid;
   bool _busListenerAttached = false;
   bool _updatingSession = false;
@@ -73,7 +77,16 @@ class _CommuterRideTracker {
 
     _busTracking.activeBuses.addListener(_onBusesChanged);
     _busListenerAttached = true;
-    _observeBusPositions(_busTracking.activeBuses.value);
+    _remoteBusSubscription = _busTracking.remoteActiveBuses.listen(
+      (buses) {
+        _remoteBuses = buses;
+        _onBusesChanged();
+      },
+      onError: (Object error) {
+        _setMessage('Unable to load driver locations: $error');
+      },
+    );
+    _observeBusPositions(_trackedBuses);
     _authSubscription ??= _auth.authStateChanges().listen(
       _onAuthChanged,
       onError: (Object error) =>
@@ -99,6 +112,9 @@ class _CommuterRideTracker {
       _busTracking.activeBuses.removeListener(_onBusesChanged);
       _busListenerAttached = false;
     }
+    await _remoteBusSubscription?.cancel();
+    _remoteBusSubscription = null;
+    _remoteBuses = [];
     await _positionSubscription?.cancel();
     _positionSubscription = null;
     _commuterPosition = null;
@@ -150,7 +166,11 @@ class _CommuterRideTracker {
     }
   }
 
-  Future<void> refreshLocation() => _startLocationTracking();
+  Future<bool> refreshLocation() async {
+    await _startLocationTracking();
+    final state = viewState.value;
+    return state.message == null && state.nearbyPlate != null;
+  }
 
   Future<void> _refreshLocation() async {
     final position = await Geolocator.getCurrentPosition(
@@ -175,8 +195,16 @@ class _CommuterRideTracker {
   }
 
   void _onBusesChanged() {
-    _observeBusPositions(_busTracking.activeBuses.value);
+    _observeBusPositions(_trackedBuses);
     unawaited(_updateRideSession());
+  }
+
+  List<ActiveBus> get _trackedBuses {
+    final busesByDriver = {for (final bus in _remoteBuses) bus.driverId: bus};
+    for (final bus in _busTracking.activeBuses.value) {
+      busesByDriver[bus.driverId] = bus;
+    }
+    return busesByDriver.values.toList();
   }
 
   void _observeBusPositions(List<ActiveBus> buses) {
@@ -239,7 +267,7 @@ class _CommuterRideTracker {
     }
 
     final nearbyBuses =
-        _busTracking.activeBuses.value
+        _trackedBuses
             .where(
               (bus) => bus.isActive && _isInsideVehicleFootprint(bus, position),
             )
@@ -333,8 +361,9 @@ class _CommuterRideTracker {
 
 class RidesScreen extends StatefulWidget {
   final VoidCallback? onMenuPressed;
+  final Future<void> Function()? onShowMap;
 
-  const RidesScreen({super.key, this.onMenuPressed});
+  const RidesScreen({super.key, this.onMenuPressed, this.onShowMap});
 
   @override
   State<RidesScreen> createState() => _RidesScreenState();
@@ -375,6 +404,24 @@ class _RidesScreenState extends State<RidesScreen> {
     if (mounted) setState(() {});
   }
 
+  Future<void> _checkNearbyPuv() async {
+    final foundPuv = await _tracker.refreshLocation();
+    if (!mounted) return;
+    if (!foundPuv) {
+      if (_tracker.viewState.value.message == null) {
+        _showMessage('No active PUV detected nearby.', 'Info', NotifType.info);
+      }
+      return;
+    }
+
+    final onShowMap = widget.onShowMap;
+    if (onShowMap != null) {
+      await onShowMap();
+    } else {
+      await Navigator.of(context).maybePop();
+    }
+  }
+
   Future<void> _toggleFavorite(
     String uid,
     Map<String, dynamic> ride,
@@ -406,9 +453,9 @@ class _RidesScreenState extends State<RidesScreen> {
         }
         transaction.update(userRef, {'savedRides': savedRides});
       });
-      _showMessage(isFavorite ? 'Ride removed from favorites.' : 'Ride saved.');
+      _showMessage(isFavorite ? 'Ride removed from favorites.' : 'Ride saved.', 'Info', NotifType.info);
     } catch (error) {
-      _showMessage('Unable to update favorites: $error');
+      _showMessage('Unable to update favorites: $error', 'Error', NotifType.error);
     }
   }
 
@@ -423,28 +470,19 @@ class _RidesScreenState extends State<RidesScreen> {
         }
         transaction.delete(rideRef);
       });
-      _showMessage('Ride deleted.');
+      _showMessage('Ride deleted.','Info', NotifType.info);
     } catch (error) {
-      _showMessage('Unable to delete ride: $error');
+      _showMessage('Unable to delete ride: $error', 'Error', NotifType.error);
     }
   }
 
   Future<void> _confirmDeleteRide(String uid, String rideId) async {
     final shouldDelete = await showDialog<bool>(
       context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('Delete ride?'),
-        content: const Text('This recent ride will be permanently removed.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext, false),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(dialogContext, true),
-            child: const Text('Delete'),
-          ),
-        ],
+      builder: (dialogContext) => ConfirmationDialog(
+        title: 'Delete ride?',
+        content: 'This recent ride will be permanently removed.',
+        confirmText: 'Delete',
       ),
     );
     if (shouldDelete == true) await _deleteRide(uid, rideId);
@@ -494,10 +532,9 @@ class _RidesScreenState extends State<RidesScreen> {
     return value.toDate().toLocal().toString();
   }
 
-  void _showMessage(String message) {
+  void _showMessage(String message, String title, NotifType type) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context)
-        .showSnackBar(SnackBar(content: Text(message)));
+    PopupNotif(message: message, title: title, type: type,).show(context);
   }
 
   @override
@@ -514,7 +551,7 @@ class _RidesScreenState extends State<RidesScreen> {
           ? null
           : FloatingButton(
               heroTag: 'rides-check-nearby-puv',
-              onPressed: _tracker.refreshLocation,
+              onPressed: _checkNearbyPuv,
               icon: Icons.my_location,
               label: 'Check Nearby PUV',
             ),

@@ -126,14 +126,17 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
     final uid = FirebaseAuth.instance.currentUser?.uid;
     if (uid == null) return;
     if (_isRideActive) {
-      _busTracking.stopRide(uid);
-      setState(() => _isRideActive = false);
+      try {
+        await _busTracking.stopRide(uid);
+        if (mounted) setState(() => _isRideActive = false);
+      } catch (error) {
+        if (!mounted) return;
+        PopupNotif(message: 'Unable to stop sharing location: $error', title: 'Error', type: NotifType.error).show(context);
+      }
       return;
     }
     if (_activePlate.isEmpty) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Active plate is not set.')));
+      PopupNotif(message: 'Active plate is not set', title: 'Warning', type: NotifType.warning,).show(context);
       return;
     }
     await _busTracking.startRide(
@@ -236,7 +239,7 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (context) => const StartRideScreen(),
+                  builder: (context) => const VehiclesScreen(),
                 ),
               );
             },
@@ -293,7 +296,7 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
                 context: context,
                 builder: (context) => const ConfirmationDialog(
                   title: 'Log Out',
-                  message: 'Are you sure you want to log out?',
+                  content: 'Are you sure you want to log out?',
                   confirmText: 'Log Out',
                 ),
               );
@@ -319,6 +322,7 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
                 PopupNotif(
                   title: 'Success',
                   message: 'You have successfully logged out.',
+                  type: NotifType.success,
                 ).show(context);
               } catch (e) {
                 if (!context.mounted) return;
@@ -326,6 +330,7 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
                 PopupNotif(
                   title: 'Error',
                   message: 'Failed to log out. Please try again.',
+                  type: NotifType.error,
                 ).show(context);
               }
             },
@@ -402,15 +407,14 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
                       isDriverView:
                           false, // Set to true in driver_home_screen.dart!
                       onTapCorridor: (corridor) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text(
+                        PopupNotif(
+                          message:
                               '${corridor.name}: ${corridor.label} '
                               '(${(corridor.confidence * 100).toStringAsFixed(0)}% AI confidence, '
                               'Rain: ${_predictor.currentRainMm} mm)',
-                            ),
-                          ),
-                        );
+                          title: 'Info',
+                          type: NotifType.info,
+                        ).show(context);
                       },
                     ),
                   ],

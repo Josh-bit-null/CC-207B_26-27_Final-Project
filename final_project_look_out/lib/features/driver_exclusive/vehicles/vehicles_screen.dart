@@ -1,5 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:final_project_look_out/widgets/confirmation_dialog.dart';
 import 'package:final_project_look_out/widgets/loader.dart';
+import 'package:final_project_look_out/widgets/popup_notif.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
@@ -174,48 +176,38 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
     if (input == null || !mounted) return;
     try {
       await _addPlate(uid, input);
-      _showMessage('Vehicle added.');
+      _showMessage('Vehicle added.', 'Info', NotifType.info);
     } catch (error) {
-      _showMessage('Unable to add vehicle: $error');
+      _showMessage('Unable to add vehicle: $error', 'Error', NotifType.error);
     }
   }
 
   Future<void> _confirmRemove(String uid, String plate) async {
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Remove vehicle?'),
-        content: Text('Remove $plate from your assigned vehicles?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Remove'),
-          ),
-        ],
+      builder: (context) => ConfirmationDialog(
+        title: 'Remove vehicle?',
+        content: 'Remove $plate from your assigned vehicles?',
+        confirmText: 'Remove',
       ),
     );
     if (confirmed != true || !mounted) return;
     if (_hasActiveRide) {
-      _showMessage('End your active ride before removing a vehicle.');
+      _showMessage('End your active ride before removing a vehicle.', 'Warning', NotifType.warning);
       return;
     }
 
     try {
       await _removePlate(uid, plate);
-      _showMessage('Vehicle removed.');
+      _showMessage('Vehicle removed.', 'Info', NotifType.info);
     } catch (error) {
-      _showMessage('Unable to remove vehicle: $error');
+      _showMessage('Unable to remove vehicle: $error', 'Error', NotifType.error);
     }
   }
 
-  void _showMessage(String message) {
+  void _showMessage(String message, String title, NotifType type) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context)
-        .showSnackBar(SnackBar(content: Text(message)));
+    PopupNotif(message: message, title: title, type: type).show(context);
   }
 
   @override
@@ -345,13 +337,15 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
                                 try {
                                   if (action == 'select') {
                                     await _setActivePlate(uid, plate);
-                                    _showMessage('Active vehicle updated.');
+                                    _showMessage('Active vehicle updated.', 'Info', NotifType.info);
                                   } else if (action == 'remove') {
                                     await _confirmRemove(uid, plate);
                                   }
                                 } catch (error) {
                                   _showMessage(
                                     'Unable to update vehicle: $error',
+                                    'Error',
+                                    NotifType.error
                                   );
                                 }
                               },
