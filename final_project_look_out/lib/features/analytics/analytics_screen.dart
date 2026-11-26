@@ -98,6 +98,28 @@ class AnalyticsScreen extends StatelessWidget {
                 final overallAverageMinutes = ridesWithDuration == 0
                     ? null
                     : totalDurationSeconds / ridesWithDuration / 60;
+                final metricCards = [
+                  _MetricCard(
+                    title: 'Rides recorded',
+                    value: rides.length.toString(),
+                    icon: Icons.route_outlined,
+                  ),
+                  _MetricCard(
+                    title: 'Average ride duration',
+                    value: _formatDuration(overallAverageMinutes),
+                    icon: Icons.schedule_outlined,
+                  ),
+                  _MetricCard(
+                    title: 'Longest average weekday',
+                    value: slowestWeekday?.label ?? '—',
+                    icon: Icons.trending_up,
+                  ),
+                  _MetricCard(
+                    title: 'Days with recorded rides',
+                    value: weekdaysWithRides.length.toString(),
+                    icon: Icons.calendar_today_outlined,
+                  ),
+                ];
 
                 return ListView(
                   padding: const EdgeInsets.all(20),
@@ -117,35 +139,18 @@ class AnalyticsScreen extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(height: 20),
-                    GridView.count(
-                      crossAxisCount: 2,
-                      crossAxisSpacing: 12,
-                      mainAxisSpacing: 12,
-                      childAspectRatio: 3.5,
+                    GridView.builder(
+                      gridDelegate:
+                          const SliverGridDelegateWithFixedCrossAxisCount(
+                            crossAxisCount: 2,
+                            crossAxisSpacing: 12,
+                            mainAxisSpacing: 12,
+                            mainAxisExtent: 132,
+                          ),
                       shrinkWrap: true,
                       physics: const NeverScrollableScrollPhysics(),
-                      children: [
-                        _MetricCard(
-                          title: 'Rides recorded',
-                          value: rides.length.toString(),
-                          icon: Icons.route_outlined,
-                        ),
-                        _MetricCard(
-                          title: 'Average ride duration',
-                          value: _formatDuration(overallAverageMinutes),
-                          icon: Icons.schedule_outlined,
-                        ),
-                        _MetricCard(
-                          title: 'Longest average weekday',
-                          value: slowestWeekday?.label ?? '—',
-                          icon: Icons.trending_up,
-                        ),
-                        _MetricCard(
-                          title: 'Days with recorded rides',
-                          value: weekdaysWithRides.length.toString(),
-                          icon: Icons.calendar_today_outlined,
-                        ),
-                      ],
+                      itemCount: metricCards.length,
+                      itemBuilder: (context, index) => metricCards[index],
                     ),
                     const SizedBox(height: 20),
                     _RideDurationChart(days: weekdayStats),
