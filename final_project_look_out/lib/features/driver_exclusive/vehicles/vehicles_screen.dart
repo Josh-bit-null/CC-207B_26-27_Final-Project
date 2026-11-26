@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:final_project_look_out/widgets/loader.dart';
+import 'package:final_project_look_out/widgets/popup_notif.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
@@ -174,9 +175,9 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
     if (input == null || !mounted) return;
     try {
       await _addPlate(uid, input);
-      _showMessage('Vehicle added.');
+      _showMessage('Vehicle added.', NotifType.info);
     } catch (error) {
-      _showMessage('Unable to add vehicle: $error');
+      _showMessage('Unable to add vehicle: $error', NotifType.error);
     }
   }
 
@@ -200,22 +201,21 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
     );
     if (confirmed != true || !mounted) return;
     if (_hasActiveRide) {
-      _showMessage('End your active ride before removing a vehicle.');
+      _showMessage('End your active ride before removing a vehicle.',NotifType.warning);
       return;
     }
 
     try {
       await _removePlate(uid, plate);
-      _showMessage('Vehicle removed.');
+      _showMessage('Vehicle removed.', NotifType.info);
     } catch (error) {
-      _showMessage('Unable to remove vehicle: $error');
+      _showMessage('Unable to remove vehicle: $error', NotifType.error);
     }
   }
 
-  void _showMessage(String message) {
+  void _showMessage(String message, NotifType type) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context)
-        .showSnackBar(SnackBar(content: Text(message)));
+    PopupNotif(message: message, type: type).show(context);
   }
 
   @override
@@ -345,13 +345,14 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
                                 try {
                                   if (action == 'select') {
                                     await _setActivePlate(uid, plate);
-                                    _showMessage('Active vehicle updated.');
+                                    _showMessage('Active vehicle updated.', NotifType.info);
                                   } else if (action == 'remove') {
                                     await _confirmRemove(uid, plate);
                                   }
                                 } catch (error) {
                                   _showMessage(
                                     'Unable to update vehicle: $error',
+                                    NotifType.error
                                   );
                                 }
                               },

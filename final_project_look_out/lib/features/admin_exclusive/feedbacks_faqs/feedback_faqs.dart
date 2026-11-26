@@ -1,6 +1,7 @@
 //updated to be functional - Joshua
 
 import 'package:final_project_look_out/widgets/loader.dart';
+import 'package:final_project_look_out/widgets/popup_notif.dart';
 
 import '../../../services/admin_log_service.dart';
 import '../../../widgets/lookout_app_bar.dart';
@@ -571,15 +572,11 @@ Future<void> _editFaq(
   try {
     await batch.commit();
     if (context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(faq == null ? 'FAQ added.' : 'FAQ updated.')),
-      );
+      PopupNotif(message: faq == null ? 'FAQ added.' : 'FAQ updated.', type: NotifType.success,).show(context);
     }
   } on FirebaseException catch (error) {
     if (context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Unable to save FAQ: ${error.message}')),
-      );
+      PopupNotif(message: 'Unable to save FAQ: ${error.message}', title: 'Error', type: NotifType.error,).show(context);
     }
   }
 }
@@ -622,9 +619,7 @@ Future<void> _deleteFaq(
     await batch.commit();
   } on FirebaseException catch (error) {
     if (context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Unable to delete FAQ: ${error.message}')),
-      );
+      PopupNotif(message: 'Unable to delete FAQ: ${error.message}', title: 'Error', type: NotifType.error,).show(context);
     }
   }
 }
@@ -651,15 +646,11 @@ Future<void> _setFeedbackStatus(
   try {
     await batch.commit();
     if (context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Feedback marked as resolved.')),
-      );
+      PopupNotif(message: 'Feedback marked as resolved.', type: NotifType.info,).show(context);
     }
   } on FirebaseException catch (error) {
     if (context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Unable to update feedback: ${error.message}')),
-      );
+      PopupNotif(message: 'Unable to update feedback: ${error.message}', title: 'Error', type: NotifType.error,).show(context);
     }
   }
 }

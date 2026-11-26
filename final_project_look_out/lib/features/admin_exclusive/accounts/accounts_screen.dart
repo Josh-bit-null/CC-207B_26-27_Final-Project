@@ -1,4 +1,5 @@
 import 'package:final_project_look_out/widgets/loader.dart';
+import 'package:final_project_look_out/widgets/popup_notif.dart';
 
 import '../../../services/admin_account_service.dart';
 import '../../../services/admin_log_service.dart';
@@ -473,14 +474,11 @@ Future<void> _createAccount(BuildContext context) async {
       role: values.role,
     );
     if (context.mounted) {
-      ScaffoldMessenger.of(context)
-          .showSnackBar(const SnackBar(content: Text('Account created.')));
+      PopupNotif(message: 'Account Created.', type: NotifType.success,).show(context);
     }
   } on FirebaseException catch (error) {
     if (context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Unable to create account: ${error.message}')),
-      );
+      PopupNotif(message: 'Unable to create account: ${error.message}', title: 'Error', type: NotifType.error,).show(context);
     }
   }
 }
@@ -530,14 +528,11 @@ Future<void> _updateAccount(
   try {
     await batch.commit();
     if (context.mounted) {
-      ScaffoldMessenger.of(context)
-          .showSnackBar(const SnackBar(content: Text('Account updated.')));
+      PopupNotif(message: 'Account updated.', type: NotifType.success,).show(context);
     }
   } on FirebaseException catch (error) {
     if (context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Unable to update account: ${error.message}')),
-      );
+      PopupNotif(message: 'Unable to update account: ${error.message}', title: 'Error', type: NotifType.error,).show(context);
     }
   }
 }
@@ -750,19 +745,11 @@ Future<void> _deleteAccount(
       email: account.data()['email'] as String? ?? '',
     );
     if (context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Firestore profile deleted. The Auth account may remain.',
-          ),
-        ),
-      );
+      PopupNotif(message: 'Firestore profile deleted. The Auth account may remain.', type: NotifType.info,).show(context);
     }
   } on FirebaseException catch (error) {
     if (context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Unable to delete account: ${error.message}')),
-      );
+      PopupNotif(message: 'Unable to delete account: ${error.message}', title: 'Error', type: NotifType.success,).show(context);
     }
   }
 }

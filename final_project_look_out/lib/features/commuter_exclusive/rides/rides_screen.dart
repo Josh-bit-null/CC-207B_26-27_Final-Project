@@ -3,6 +3,7 @@ import 'dart:math' as math;
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:final_project_look_out/widgets/loader.dart';
+import 'package:final_project_look_out/widgets/popup_notif.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
@@ -406,9 +407,9 @@ class _RidesScreenState extends State<RidesScreen> {
         }
         transaction.update(userRef, {'savedRides': savedRides});
       });
-      _showMessage(isFavorite ? 'Ride removed from favorites.' : 'Ride saved.');
+      _showMessage(isFavorite ? 'Ride removed from favorites.' : 'Ride saved.', NotifType.info);
     } catch (error) {
-      _showMessage('Unable to update favorites: $error');
+      _showMessage('Unable to update favorites: $error', NotifType.error);
     }
   }
 
@@ -423,9 +424,9 @@ class _RidesScreenState extends State<RidesScreen> {
         }
         transaction.delete(rideRef);
       });
-      _showMessage('Ride deleted.');
+      _showMessage('Ride deleted.', NotifType.info);
     } catch (error) {
-      _showMessage('Unable to delete ride: $error');
+      _showMessage('Unable to delete ride: $error', NotifType.error);
     }
   }
 
@@ -494,10 +495,9 @@ class _RidesScreenState extends State<RidesScreen> {
     return value.toDate().toLocal().toString();
   }
 
-  void _showMessage(String message) {
+  void _showMessage(String message, NotifType type) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context)
-        .showSnackBar(SnackBar(content: Text(message)));
+    PopupNotif(message: message, type: type,).show(context);
   }
 
   @override

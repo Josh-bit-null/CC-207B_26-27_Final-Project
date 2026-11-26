@@ -360,6 +360,7 @@ class _CommuterHomeScreenState extends State<CommuterHomeScreen> {
                 PopupNotif(
                   title: 'Success',
                   message: 'You have successfully logged out.',
+                  type: NotifType.success,
                 ).show(context);
               } catch (e) {
                 if (!context.mounted) return;
@@ -367,6 +368,7 @@ class _CommuterHomeScreenState extends State<CommuterHomeScreen> {
                 PopupNotif(
                   title: 'Error',
                   message: 'Failed to log out. Please try again.',
+                  type: NotifType.error,
                 ).show(context);
               }
             },
@@ -444,14 +446,12 @@ class _CommuterHomeScreenState extends State<CommuterHomeScreen> {
                       isDriverView:
                           false, // Set to true in driver_home_screen.dart!
                       onTapCorridor: (corridor) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text(
+                        PopupNotif(
+                          message:
                               '${corridor.name}: ${corridor.label} '
                               '(${(corridor.confidence * 100).toStringAsFixed(0)}% AI confidence, '
                               'Rain: ${_predictor.currentRainMm} mm)',
-                            ),
-                          ),
+                          type: NotifType.info,
                         );
                       },
                     ),

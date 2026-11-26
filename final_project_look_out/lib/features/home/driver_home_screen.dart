@@ -131,9 +131,7 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
       return;
     }
     if (_activePlate.isEmpty) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Active plate is not set.')));
+      PopupNotif(message: 'Active plate is not set', type: NotifType.warning,).show(context);
       return;
     }
     await _busTracking.startRide(
@@ -231,7 +229,7 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (context) => const StartRideScreen(),
+                  builder: (context) => const VehiclesScreen(),
                 ),
               );
             },
@@ -314,6 +312,7 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
                 PopupNotif(
                   title: 'Success',
                   message: 'You have successfully logged out.',
+                  type: NotifType.success,
                 ).show(context);
               } catch (e) {
                 if (!context.mounted) return;
@@ -321,6 +320,7 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
                 PopupNotif(
                   title: 'Error',
                   message: 'Failed to log out. Please try again.',
+                  type: NotifType.error,
                 ).show(context);
               }
             },
@@ -397,15 +397,13 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
                       isDriverView:
                           false, // Set to true in driver_home_screen.dart!
                       onTapCorridor: (corridor) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text(
+                        PopupNotif(
+                          message:
                               '${corridor.name}: ${corridor.label} '
                               '(${(corridor.confidence * 100).toStringAsFixed(0)}% AI confidence, '
                               'Rain: ${_predictor.currentRainMm} mm)',
-                            ),
-                          ),
-                        );
+                          type: NotifType.info,
+                        ).show(context);
                       },
                     ),
                   ],

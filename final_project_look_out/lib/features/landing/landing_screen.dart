@@ -78,9 +78,11 @@ class _LandingScreenState extends State<LandingScreen> {
 
       if (!mounted) return;
 
+      _showMessage('Logged in successfully', NotifType.success);
+
       if (userData == null) {
         await _authService.signOut();
-        _showMessage("User Not FOund");
+        _showMessage("User Not FOund", NotifType.warning);
         return;
       }
 
@@ -89,19 +91,21 @@ class _LandingScreenState extends State<LandingScreen> {
       if (actualRole != 'admin' && actualRole != expectedRole) {
         _showMessage(
           "Wrong login tab. This account is registered as${actualRole.toUpperCase()}",
+          NotifType.warning,
         );
       }
 
       _navigateToDashboard(actualRole);
     } on FirebaseAuthException catch (e) {
       if (!mounted) return;
-      _showMessage(e.toString());
+      _showMessage(e.toString(), NotifType.warning,);
     } catch (e) {
       if (!mounted) return;
-      _showMessage('Login failed. Please try again.');
+      _showMessage('Login failed. Please try again.', NotifType.error,);
     } finally {
       if (mounted && ModalRoute.of(context)?.isCurrent == true) {
         setState(() => isLoading = false);
+        _showMessage('Login Successfully.', NotifType.success,);
       }
     }
   }
@@ -128,6 +132,7 @@ class _LandingScreenState extends State<LandingScreen> {
 
       _showMessage(
         'Registered as ${_signupRole.toUpperCase()}! You can now log in.',
+        NotifType.success
       );
 
       _signupNameCtrl.clear();
@@ -135,7 +140,7 @@ class _LandingScreenState extends State<LandingScreen> {
       _signupPassCtrl.clear();
     } catch (e) {
       if (!mounted) return;
-      _showMessage(e.toString());
+      _showMessage(e.toString(), NotifType.error);
     } finally {
       if (mounted) setState(() => isLoading = false);
     }
@@ -154,8 +159,8 @@ class _LandingScreenState extends State<LandingScreen> {
   }
 
   // NOTIFICATION
-  void _showMessage(String text) {
-    PopupNotif(title: 'Notification', message: text).show(context);
+  void _showMessage(String text, NotifType type,) {
+    PopupNotif(message: text, type: type ).show(context);
   }
 
   // REUSABLE INPUT DECORATION
