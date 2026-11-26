@@ -73,25 +73,43 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen> {
 
   Future<void> _openEditor({
     required String authorName,
+    required bool isAdmin,
+    required bool isDriver,
     QueryDocumentSnapshot<Map<String, dynamic>>? existing,
   }) async {
+    if (!isAdmin && !isDriver) return;
+
     final data = existing?.data();
+    final currentUid = FirebaseAuth.instance.currentUser?.uid;
+    if (existing != null && !_canManageAnnouncement(
+      data: data ?? const {},
+      currentUid: currentUid,
+      isAdmin: isAdmin,
+      isDriver: isDriver,
+    )) {
+      return;
+    }
+
+    final initialTargetRole = isAdmin
+        ? _normalizeAudience(data?['targetRole'] as String?)
+        : 'driver';
+
     final result = await showDialog<_AnnouncementDraft>(
       context: context,
       builder: (context) => _AnnouncementEditorDialog(
         initialTitle: data?['title'] as String? ?? '',
         initialMessage: data?['message'] as String? ?? '',
         initialCategory: _normalizeCategory(data?['category'] as String?),
-        initialTargetRole: _normalizeAudience(data?['targetRole'] as String?),
-        initialPinned: data?['isPinned'] as bool? ?? false,
+        initialTargetRole: initialTargetRole,
         isEditing: existing != null,
+        canSelectAudience: isAdmin,
         categories: _categories,
         audiences: _audiences,
       ),
     );
     if (result == null || !mounted) return;
 
-    final uid = FirebaseAuth.instance.currentUser?.uid;
+    final targetRole = isAdmin ? result.targetRole : 'driver';
     final docRef =
         existing?.reference ?? _firestore.collection('announcements').doc();
     final now = FieldValue.serverTimestamp();
@@ -102,10 +120,10 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen> {
         'title': result.title,
         'message': result.message,
         'category': result.category,
-        'targetRole': result.targetRole,
-        'isPinned': result.isPinned,
+        'targetRole': targetRole,
         'authorName': authorName,
-        'authorUid': uid,
+        'authorRole': isAdmin ? 'admin' : 'driver',
+        'authorUid': currentUid,
         'createdAt': now,
         'updatedAt': now,
       });
@@ -114,22 +132,23 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen> {
         'title': result.title,
         'message': result.message,
         'category': result.category,
-        'targetRole': result.targetRole,
-        'isPinned': result.isPinned,
+        'targetRole': targetRole,
         'updatedAt': now,
       });
     }
 
-    batch.set(
-      _firestore.collection('logs').doc(),
-      adminLogData(
-        title: existing == null
-            ? 'Announcement posted'
-            : 'Announcement updated',
-        description: result.title,
-        type: 'Announcement',
-      ),
-    );
+    if (isAdmin) {
+      batch.set(
+        _firestore.collection('logs').doc(),
+        adminLogData(
+          title: existing == null
+              ? 'Announcement posted'
+              : 'Announcement updated',
+          description: result.title,
+          type: 'Announcement',
+        ),
+      );
+    }
 
     try {
       await batch.commit();
@@ -151,50 +170,23 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen> {
     }
   }
 
-  Future<void> _togglePin(
-    QueryDocumentSnapshot<Map<String, dynamic>> doc,
-  ) async {
-    final data = doc.data();
-    final nextPinned = !(data['isPinned'] as bool? ?? false);
-    final batch = _firestore.batch();
-    batch.update(doc.reference, {
-      'isPinned': nextPinned,
-      'updatedAt': FieldValue.serverTimestamp(),
-    });
-    batch.set(
-      _firestore.collection('logs').doc(),
-      adminLogData(
-        title: nextPinned ? 'Announcement pinned' : 'Announcement unpinned',
-        description: data['title'] as String? ?? doc.id,
-        type: 'Announcement',
-      ),
-    );
-
-    try {
-      await batch.commit();
-      if (!mounted) return;
-      PopupNotif(
-        title: 'Updated',
-        message: nextPinned
-            ? 'Announcement pinned to top.'
-            : 'Announcement unpinned.',
-        type: NotifType.info,
-      ).show(context);
-    } on FirebaseException catch (error) {
-      if (!mounted) return;
-      PopupNotif(
-        title: 'Error',
-        message:
-            'Unable to update announcement: ${error.message ?? error.code}',
-        type: NotifType.error,
-      ).show(context);
-    }
-  }
-
   Future<void> _deleteAnnouncement(
-    QueryDocumentSnapshot<Map<String, dynamic>> doc,
-  ) async {
-    final title = doc.data()['title'] as String? ?? 'this announcement';
+    QueryDocumentSnapshot<Map<String, dynamic>> doc, {
+    required bool isAdmin,
+    required bool isDriver,
+  }) async {
+    final data = doc.data();
+    final currentUid = FirebaseAuth.instance.currentUser?.uid;
+    if (!_canManageAnnouncement(
+      data: data,
+      currentUid: currentUid,
+      isAdmin: isAdmin,
+      isDriver: isDriver,
+    )) {
+      return;
+    }
+
+    final title = data['title'] as String? ?? 'this announcement';
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => ConfirmationDialog(
@@ -207,14 +199,16 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen> {
 
     final batch = _firestore.batch();
     batch.delete(doc.reference);
-    batch.set(
-      _firestore.collection('logs').doc(),
-      adminLogData(
-        title: 'Announcement deleted',
-        description: title,
-        type: 'Announcement',
-      ),
-    );
+    if (isAdmin) {
+      batch.set(
+        _firestore.collection('logs').doc(),
+        adminLogData(
+          title: 'Announcement deleted',
+          description: title,
+          type: 'Announcement',
+        ),
+      );
+    }
 
     try {
       await batch.commit();
@@ -235,10 +229,23 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen> {
     }
   }
 
+  static bool _canManageAnnouncement({
+    required Map<String, dynamic> data,
+    required String? currentUid,
+    required bool isAdmin,
+    required bool isDriver,
+  }) {
+    if (isAdmin) return true;
+    if (!isDriver || currentUid == null) return false;
+    final targetRole = _normalizeAudience(data['targetRole'] as String?);
+    return targetRole == 'driver' && data['authorUid'] == currentUid;
+  }
+
   List<QueryDocumentSnapshot<Map<String, dynamic>>> _filterAndSort(
     List<QueryDocumentSnapshot<Map<String, dynamic>>> docs, {
     required String userRole,
     required bool isAdmin,
+    required bool isDriver,
   }) {
     final filtered = docs.where((doc) {
       final data = doc.data();
@@ -248,6 +255,12 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen> {
       }
 
       if (isAdmin &&
+          _selectedAudience != _allFilter &&
+          targetRole != _selectedAudience) {
+        return false;
+      }
+
+      if (isDriver &&
           _selectedAudience != _allFilter &&
           targetRole != _selectedAudience) {
         return false;
@@ -274,16 +287,8 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen> {
     }).toList();
 
     filtered.sort((a, b) {
-      final dataA = a.data();
-      final dataB = b.data();
-      final pinnedA = dataA['isPinned'] as bool? ?? false;
-      final pinnedB = dataB['isPinned'] as bool? ?? false;
-      if (pinnedA != pinnedB) {
-        return pinnedA ? -1 : 1;
-      }
-
-      final timeA = _timestampMillis(dataA['createdAt']);
-      final timeB = _timestampMillis(dataB['createdAt']);
+      final timeA = _timestampMillis(a.data()['createdAt']);
+      final timeB = _timestampMillis(b.data()['createdAt']);
       return _sort == _AnnouncementSort.newestFirst
           ? timeB.compareTo(timeA)
           : timeA.compareTo(timeB);
@@ -360,13 +365,22 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen> {
       stream: _userProfileStream(),
       builder: (context, profileSnapshot) {
         final profile = profileSnapshot.data?.data();
+        final currentUid = FirebaseAuth.instance.currentUser?.uid;
         final userRole =
             (profile?['role'] as String?)?.trim().toLowerCase() ?? 'commuter';
         final isAdmin = userRole == 'admin';
+        final isDriver = userRole == 'driver';
+        final canPost = isAdmin || isDriver;
         final fullName = (profile?['fullName'] as String?)?.trim() ?? '';
         final authorName = fullName.isNotEmpty
             ? fullName
-            : (FirebaseAuth.instance.currentUser?.email ?? 'LookOut! Admin');
+            : (FirebaseAuth.instance.currentUser?.email ??
+                (isAdmin ? 'LookOut! Admin' : 'LookOut! Driver'));
+        final availableAudiences = isAdmin
+            ? _audiences
+            : _audiences
+                  .where((audience) => audience.value != 'commuter')
+                  .toList();
 
         return Scaffold(
           appBar: LookOutAppBar(
@@ -400,6 +414,7 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen> {
                 allDocs,
                 userRole: userRole,
                 isAdmin: isAdmin,
+                isDriver: isDriver,
               );
 
               return ListView(
@@ -422,7 +437,9 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen> {
                             Text(
                               isAdmin
                                   ? 'Post and manage live service announcements.'
-                                  : 'Live project news and service advisories.',
+                                  : isDriver
+                                      ? 'View updates and share advisories with fellow drivers.'
+                                      : 'Live project news and service advisories.',
                               style: theme.textTheme.bodyMedium?.copyWith(
                                 color: colors.onSurfaceVariant,
                               ),
@@ -430,10 +447,14 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen> {
                           ],
                         ),
                       ),
-                      if (isAdmin) ...[
+                      if (canPost) ...[
                         const SizedBox(width: 12),
                         FilledButton.icon(
-                          onPressed: () => _openEditor(authorName: authorName),
+                          onPressed: () => _openEditor(
+                            authorName: authorName,
+                            isAdmin: isAdmin,
+                            isDriver: isDriver,
+                          ),
                           icon: const Icon(Icons.add),
                           label: const Text('Post'),
                         ),
@@ -507,7 +528,7 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen> {
                       ],
                     ),
                   ),
-                  if (isAdmin) ...[
+                  if (isAdmin || isDriver) ...[
                     const SizedBox(height: 8),
                     SingleChildScrollView(
                       scrollDirection: Axis.horizontal,
@@ -523,7 +544,7 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen> {
                               ),
                             ),
                           ),
-                          for (final audience in _audiences)
+                          for (final audience in availableAudiences)
                             Padding(
                               padding: const EdgeInsets.only(right: 8),
                               child: FilterChip(
@@ -582,8 +603,8 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen> {
                             Text(
                               _hasActiveFilters
                                   ? 'Try clearing your search or selecting another category.'
-                                  : isAdmin
-                                      ? 'Tap Post to publish the first update for users.'
+                                  : canPost
+                                      ? 'Tap Post to publish the first update.'
                                       : 'Check back soon for route and service updates.',
                               style: theme.textTheme.bodySmall?.copyWith(
                                 color: colors.onSurfaceVariant,
@@ -613,17 +634,28 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen> {
                             doc.data()['targetRole'] as String?,
                           ),
                         ),
+                        showAudience: isAdmin || isDriver,
                         icon: _iconForCategory(
                           _normalizeCategory(doc.data()['category'] as String?),
                         ),
                         dateLabel: _formatTimestamp(doc.data()['createdAt']),
-                        isAdmin: isAdmin,
+                        canManage: _canManageAnnouncement(
+                          data: doc.data(),
+                          currentUid: currentUid,
+                          isAdmin: isAdmin,
+                          isDriver: isDriver,
+                        ),
                         onEdit: () => _openEditor(
                           authorName: authorName,
+                          isAdmin: isAdmin,
+                          isDriver: isDriver,
                           existing: doc,
                         ),
-                        onTogglePin: () => _togglePin(doc),
-                        onDelete: () => _deleteAnnouncement(doc),
+                        onDelete: () => _deleteAnnouncement(
+                          doc,
+                          isAdmin: isAdmin,
+                          isDriver: isDriver,
+                        ),
                       ),
                 ],
               );
@@ -640,22 +672,22 @@ class _AnnouncementCard extends StatelessWidget {
     required this.doc,
     required this.category,
     required this.audienceLabel,
+    required this.showAudience,
     required this.icon,
     required this.dateLabel,
-    required this.isAdmin,
+    required this.canManage,
     required this.onEdit,
-    required this.onTogglePin,
     required this.onDelete,
   });
 
   final QueryDocumentSnapshot<Map<String, dynamic>> doc;
   final String category;
   final String audienceLabel;
+  final bool showAudience;
   final IconData icon;
   final String dateLabel;
-  final bool isAdmin;
+  final bool canManage;
   final VoidCallback onEdit;
-  final VoidCallback onTogglePin;
   final VoidCallback onDelete;
 
   @override
@@ -666,15 +698,11 @@ class _AnnouncementCard extends StatelessWidget {
     final title = data['title'] as String? ?? 'Announcement';
     final message = data['message'] as String? ?? '';
     final authorName = data['authorName'] as String? ?? 'LookOut! team';
-    final isPinned = data['isPinned'] as bool? ?? false;
 
     return Card(
       margin: const EdgeInsets.only(bottom: 14),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
-        side: isPinned
-            ? BorderSide(color: colors.primary.withValues(alpha: 0.45))
-            : BorderSide.none,
       ),
       child: Padding(
         padding: const EdgeInsets.all(18),
@@ -700,7 +728,7 @@ class _AnnouncementCard extends StatelessWidget {
                           fontWeight: FontWeight.bold,
                         ),
                       ),
-                      if (isAdmin)
+                      if (showAudience)
                         Text(
                           'Audience: $audienceLabel',
                           style: theme.textTheme.bodySmall?.copyWith(
@@ -710,37 +738,19 @@ class _AnnouncementCard extends StatelessWidget {
                     ],
                   ),
                 ),
-                if (isPinned)
-                  Padding(
-                    padding: const EdgeInsets.only(right: 4),
-                    child: Chip(
-                      avatar: Icon(
-                        Icons.push_pin,
-                        size: 16,
-                        color: colors.primary,
-                      ),
-                      label: const Text('Pinned'),
-                      visualDensity: VisualDensity.compact,
-                    ),
-                  ),
-                if (isAdmin)
+                if (canManage)
                   PopupMenuButton<String>(
                     tooltip: 'Announcement actions',
                     onSelected: (action) {
-                      if (action == 'pin') onTogglePin();
                       if (action == 'edit') onEdit();
                       if (action == 'delete') onDelete();
                     },
-                    itemBuilder: (context) => [
+                    itemBuilder: (context) => const [
                       PopupMenuItem(
-                        value: 'pin',
-                        child: Text(isPinned ? 'Unpin' : 'Pin to top'),
-                      ),
-                      const PopupMenuItem(
                         value: 'edit',
                         child: Text('Edit'),
                       ),
-                      const PopupMenuItem(
+                      PopupMenuItem(
                         value: 'delete',
                         child: Text('Delete'),
                       ),
@@ -777,14 +787,12 @@ class _AnnouncementDraft {
     required this.message,
     required this.category,
     required this.targetRole,
-    required this.isPinned,
   });
 
   final String title;
   final String message;
   final String category;
   final String targetRole;
-  final bool isPinned;
 }
 
 class _AnnouncementEditorDialog extends StatefulWidget {
@@ -793,8 +801,8 @@ class _AnnouncementEditorDialog extends StatefulWidget {
     required this.initialMessage,
     required this.initialCategory,
     required this.initialTargetRole,
-    required this.initialPinned,
     required this.isEditing,
+    required this.canSelectAudience,
     required this.categories,
     required this.audiences,
   });
@@ -803,8 +811,8 @@ class _AnnouncementEditorDialog extends StatefulWidget {
   final String initialMessage;
   final String initialCategory;
   final String initialTargetRole;
-  final bool initialPinned;
   final bool isEditing;
+  final bool canSelectAudience;
   final List<String> categories;
   final List<({String value, String label})> audiences;
 
@@ -819,7 +827,6 @@ class _AnnouncementEditorDialogState extends State<_AnnouncementEditorDialog> {
   late final TextEditingController _messageController;
   late String _category;
   late String _targetRole;
-  late bool _isPinned;
 
   @override
   void initState() {
@@ -828,7 +835,6 @@ class _AnnouncementEditorDialogState extends State<_AnnouncementEditorDialog> {
     _messageController = TextEditingController(text: widget.initialMessage);
     _category = widget.initialCategory;
     _targetRole = widget.initialTargetRole;
-    _isPinned = widget.initialPinned;
   }
 
   @override
@@ -846,14 +852,15 @@ class _AnnouncementEditorDialogState extends State<_AnnouncementEditorDialog> {
         title: _titleController.text.trim(),
         message: _messageController.text.trim(),
         category: _category,
-        targetRole: _targetRole,
-        isPinned: _isPinned,
+        targetRole: widget.canSelectAudience ? _targetRole : 'driver',
       ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
     return AlertDialog(
       title: Text(widget.isEditing ? 'Edit Announcement' : 'New Announcement'),
       content: SingleChildScrollView(
@@ -861,6 +868,7 @@ class _AnnouncementEditorDialogState extends State<_AnnouncementEditorDialog> {
           key: _formKey,
           child: Column(
             mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               DropdownButtonFormField<String>(
                 initialValue: _category,
@@ -878,21 +886,30 @@ class _AnnouncementEditorDialogState extends State<_AnnouncementEditorDialog> {
                 },
               ),
               const SizedBox(height: 12),
-              DropdownButtonFormField<String>(
-                initialValue: _targetRole,
-                decoration: const InputDecoration(labelText: 'Audience'),
-                items: widget.audiences
-                    .map(
-                      (audience) => DropdownMenuItem(
-                        value: audience.value,
-                        child: Text(audience.label),
-                      ),
-                    )
-                    .toList(),
-                onChanged: (value) {
-                  if (value != null) setState(() => _targetRole = value);
-                },
-              ),
+              if (widget.canSelectAudience)
+                DropdownButtonFormField<String>(
+                  initialValue: _targetRole,
+                  decoration: const InputDecoration(labelText: 'Audience'),
+                  items: widget.audiences
+                      .map(
+                        (audience) => DropdownMenuItem(
+                          value: audience.value,
+                          child: Text(audience.label),
+                        ),
+                      )
+                      .toList(),
+                  onChanged: (value) {
+                    if (value != null) setState(() => _targetRole = value);
+                  },
+                )
+              else
+                InputDecorator(
+                  decoration: const InputDecoration(labelText: 'Audience'),
+                  child: Text(
+                    'Drivers only',
+                    style: theme.textTheme.bodyLarge,
+                  ),
+                ),
               const SizedBox(height: 12),
               TextFormField(
                 controller: _titleController,
@@ -915,13 +932,6 @@ class _AnnouncementEditorDialogState extends State<_AnnouncementEditorDialog> {
                 validator: (value) => value == null || value.trim().isEmpty
                     ? 'Enter a message.'
                     : null,
-              ),
-              const SizedBox(height: 8),
-              SwitchListTile(
-                contentPadding: EdgeInsets.zero,
-                title: const Text('Pin to top'),
-                value: _isPinned,
-                onChanged: (value) => setState(() => _isPinned = value),
               ),
             ],
           ),
