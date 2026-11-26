@@ -1,6 +1,5 @@
 import 'dart:async';
 
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart';
@@ -64,7 +63,6 @@ class LocalBusTrackingService {
   static final LocalBusTrackingService instance = LocalBusTrackingService._();
   static const String _socketUrl = 'https://lookout-p8fw.onrender.com';
 
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final ValueNotifier<List<ActiveBus>> activeBuses =
       ValueNotifier<List<ActiveBus>>(<ActiveBus>[]);
   final ValueNotifier<List<DriverTrip>> completedTrips =
@@ -91,7 +89,7 @@ class LocalBusTrackingService {
     required String plateNumber,
     required String routeName,
   }) async {
-    _stopRide(driverId, recordTrip: false);
+    await _stopRide(driverId, recordTrip: false);
     _localDriverIds.add(driverId);
     _driversWithGps.remove(driverId);
 
@@ -107,7 +105,6 @@ class LocalBusTrackingService {
     final buses = List<ActiveBus>.from(activeBuses.value)
       ..removeWhere((bus) => bus.driverId == driverId)
       ..add(initialBus);
-    await _publishBus(initialBus);
     activeBuses.value = buses;
     connectToServer();
     _emitLocation(initialBus);
@@ -124,7 +121,7 @@ class LocalBusTrackingService {
         routeName: routeName,
       );
     }
-    return true;
+    return canTrack;
   }
 
   Future<bool> _startPositionStream({
@@ -150,6 +147,8 @@ class LocalBusTrackingService {
           ),
         ).listen(
           (position) {
+            _simulationTimer?.cancel();
+            _simulationTimer = null;
             _driversWithGps.add(driverId);
             _updateBus(
               driverId: driverId,
@@ -157,11 +156,10 @@ class LocalBusTrackingService {
               routeName: routeName,
               position: LatLng(position.latitude, position.longitude),
               speedKmh: position.speed > 0 ? position.speed * 3.6 : 20,
-            ).catchError((Object error) {
-              debugPrint('Unable to publish driver location: $error');
-            }));
+            );
           },
           onError: (_) {
+            _driversWithGps.remove(driverId);
             _startWaypointTimer(
               driverId: driverId,
               plateNumber: plateNumber,
@@ -181,19 +179,17 @@ class LocalBusTrackingService {
     var waypointIndex = 0;
     _simulationTimer = Timer.periodic(const Duration(seconds: 2), (_) {
       waypointIndex = (waypointIndex + 1) % _waypoints.length;
-      unawaited(_updateBus(
+      _updateBus(
         driverId: driverId,
         plateNumber: plateNumber,
         routeName: routeName,
         position: _waypoints[waypointIndex],
         speedKmh: 20,
-      ).catchError((Object error) {
-        debugPrint('Unable to publish driver location: $error');
-      }));
+      );
     });
   }
 
-  Future<void> _updateBus({
+  void _updateBus({
     required String driverId,
     required String plateNumber,
     required String routeName,
@@ -415,26 +411,6 @@ class LocalBusTrackingService {
     activeBuses.value = activeBuses.value
         .where((bus) => bus.driverId != driverId)
         .toList();
-    await _firestore
-        .collection('active_driver_locations')
-        .doc(driverId)
-        .delete();
-  }
-
-  Future<void> _publishBus(ActiveBus bus) {
-    return _firestore
-        .collection('active_driver_locations')
-        .doc(bus.driverId)
-        .set({
-          'driverId': bus.driverId,
-          'plateNumber': bus.plateNumber,
-          'routeName': bus.routeName,
-          'latitude': bus.position.latitude,
-          'longitude': bus.position.longitude,
-          'speedKmh': bus.speedKmh,
-          'startedAt': Timestamp.fromDate(bus.startedAt),
-          'updatedAt': FieldValue.serverTimestamp(),
-        });
   }
 
   Future<double> calculateLocalEta({

@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:math' as math;
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:final_project_look_out/widgets/confirmation_dialog.dart';
@@ -15,10 +14,21 @@ import '../../../widgets/floating_button.dart';
 import '../../../widgets/lookout_app_bar.dart';
 
 class _RideTrackingViewState {
-  const _RideTrackingViewState({this.message, this.nearbyPlate});
+  const _RideTrackingViewState({
+    this.message,
+    this.nearbyPlate,
+    this.pendingPlate,
+    this.notificationId,
+    this.notificationTitle,
+    this.notificationMessage,
+  });
 
   final String? message;
   final String? nearbyPlate;
+  final String? pendingPlate;
+  final String? notificationId;
+  final String? notificationTitle;
+  final String? notificationMessage;
 }
 
 class _CommuterRideTracker {
@@ -26,9 +36,10 @@ class _CommuterRideTracker {
 
   static final _CommuterRideTracker instance = _CommuterRideTracker._();
 
-  static const double _vehicleLengthMeters = 8.7;
-  static const double _vehicleWidthMeters = 2.3;
-  static const double _fallbackRadiusMeters = 9.0;
+  static const double _entryRadiusMeters = 15;
+  static const double _exitRadiusMeters = 25;
+  static const Duration _entryDwell = Duration(seconds: 30);
+  static const Duration _exitDwell = Duration(seconds: 20);
 
   final FirebaseFirestore _db = FirebaseFirestore.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
@@ -37,17 +48,20 @@ class _CommuterRideTracker {
   final ValueNotifier<_RideTrackingViewState> viewState = ValueNotifier(
     const _RideTrackingViewState(),
   );
-  final Map<String, LatLng> _previousBusPositions = {};
-  final Map<String, double> _busHeadings = {};
 
   StreamSubscription<Position>? _positionSubscription;
-  StreamSubscription<List<ActiveBus>>? _remoteBusSubscription;
   StreamSubscription<User?>? _authSubscription;
+  Timer? _entryTimer;
+  Timer? _exitTimer;
   Future<void>? _startFuture;
   LatLng? _commuterPosition;
-  List<ActiveBus> _remoteBuses = [];
+  Map<String, dynamic>? _activeSession;
+  String? _candidateDriverId;
+  DateTime? _candidateSince;
+  DateTime? _outsideSince;
   String? _uid;
   bool _busListenerAttached = false;
+  bool _activeSessionLoaded = false;
   bool _updatingSession = false;
   bool _updateRequested = false;
   bool _locationStartupInProgress = false;
@@ -56,8 +70,19 @@ class _CommuterRideTracker {
       _db.collection('users').doc(uid);
 
   Future<void> ensureStarted(String? uid) async {
-    if (uid == null) return;
+    _authSubscription ??= _auth.authStateChanges().listen(
+      _onAuthChanged,
+      onError: (Object error) =>
+          _setMessage('Authentication tracking failed: $error'),
+    );
+    if (uid == null) {
+      if (_uid != null) await _switchUser(null);
+      return;
+    }
     if (_uid == uid) {
+      if (!_activeSessionLoaded) {
+        await _loadActiveRideSession(uid);
+      }
       final starting = _startFuture;
       if (starting != null) {
         await starting;
@@ -75,23 +100,10 @@ class _CommuterRideTracker {
     _uid = uid;
     if (uid == null) return;
 
+    await _loadActiveRideSession(uid);
     _busTracking.activeBuses.addListener(_onBusesChanged);
     _busListenerAttached = true;
-    _remoteBusSubscription = _busTracking.remoteActiveBuses.listen(
-      (buses) {
-        _remoteBuses = buses;
-        _onBusesChanged();
-      },
-      onError: (Object error) {
-        _setMessage('Unable to load driver locations: $error');
-      },
-    );
-    _observeBusPositions(_trackedBuses);
-    _authSubscription ??= _auth.authStateChanges().listen(
-      _onAuthChanged,
-      onError: (Object error) =>
-          _setMessage('Authentication tracking failed: $error'),
-    );
+    _busTracking.connectToServer();
 
     final startFuture = _startLocationTracking();
     _startFuture = startFuture;
@@ -112,17 +124,40 @@ class _CommuterRideTracker {
       _busTracking.activeBuses.removeListener(_onBusesChanged);
       _busListenerAttached = false;
     }
-    await _remoteBusSubscription?.cancel();
-    _remoteBusSubscription = null;
-    _remoteBuses = [];
     await _positionSubscription?.cancel();
     _positionSubscription = null;
+    _entryTimer?.cancel();
+    _entryTimer = null;
+    _exitTimer?.cancel();
+    _exitTimer = null;
     _commuterPosition = null;
-    _previousBusPositions.clear();
-    _busHeadings.clear();
+    _activeSession = null;
+    _candidateDriverId = null;
+    _candidateSince = null;
+    _outsideSince = null;
+    _activeSessionLoaded = false;
     _updatingSession = false;
     _updateRequested = false;
     _setViewState(const _RideTrackingViewState());
+  }
+
+  Future<void> _loadActiveRideSession(String uid) async {
+    try {
+      final snapshot = await _userRef(uid).get();
+      if (!snapshot.exists) {
+        throw StateError('Your user profile could not be found.');
+      }
+      final value = snapshot.data()?['activeRideSession'];
+      _activeSession = value is Map ? Map<String, dynamic>.from(value) : null;
+      _activeSessionLoaded = true;
+      final plate = _activeSession?['toPlate'];
+      _setViewState(
+        _RideTrackingViewState(nearbyPlate: plate is String ? plate : null),
+      );
+    } catch (error) {
+      _activeSessionLoaded = false;
+      _setMessage('Unable to load your current ride: $error');
+    }
   }
 
   Future<void> _startLocationTracking() async {
@@ -169,7 +204,8 @@ class _CommuterRideTracker {
   Future<bool> refreshLocation() async {
     await _startLocationTracking();
     final state = viewState.value;
-    return state.message == null && state.nearbyPlate != null;
+    return state.message == null &&
+        (state.nearbyPlate != null || state.pendingPlate != null);
   }
 
   Future<void> _refreshLocation() async {
@@ -182,10 +218,15 @@ class _CommuterRideTracker {
   }
 
   void _setMessage(String? message) {
+    final state = viewState.value;
     _setViewState(
       _RideTrackingViewState(
         message: message,
-        nearbyPlate: viewState.value.nearbyPlate,
+        nearbyPlate: state.nearbyPlate,
+        pendingPlate: state.pendingPlate,
+        notificationId: state.notificationId,
+        notificationTitle: state.notificationTitle,
+        notificationMessage: state.notificationMessage,
       ),
     );
   }
@@ -195,66 +236,166 @@ class _CommuterRideTracker {
   }
 
   void _onBusesChanged() {
-    _observeBusPositions(_trackedBuses);
     unawaited(_updateRideSession());
   }
 
-  List<ActiveBus> get _trackedBuses {
-    final busesByDriver = {for (final bus in _remoteBuses) bus.driverId: bus};
-    for (final bus in _busTracking.activeBuses.value) {
-      busesByDriver[bus.driverId] = bus;
-    }
-    return busesByDriver.values.toList();
-  }
+  List<ActiveBus> get _trackedBuses => _busTracking.activeBuses.value;
 
-  void _observeBusPositions(List<ActiveBus> buses) {
-    final activeDriverIds = buses
-        .where((bus) => bus.isActive)
-        .map((bus) => bus.driverId)
-        .toSet();
-    _previousBusPositions.removeWhere(
-      (driverId, _) => !activeDriverIds.contains(driverId),
-    );
-    _busHeadings.removeWhere(
-      (driverId, _) => !activeDriverIds.contains(driverId),
-    );
-
-    for (final bus in buses.where((bus) => bus.isActive)) {
-      final previous = _previousBusPositions[bus.driverId];
-      if (previous != null &&
-          _distance.as(LengthUnit.Meter, previous, bus.position) > 0.5) {
-        _busHeadings[bus.driverId] = _bearingBetween(previous, bus.position);
+  ActiveBus? _nearestBusWithin(LatLng position, double radiusMeters) {
+    final candidates =
+        _trackedBuses
+            .where(
+              (bus) =>
+                  bus.isActive &&
+                  _distance.as(LengthUnit.Meter, position, bus.position) <=
+                      radiusMeters,
+            )
+            .toList()
+          ..sort(
+            (first, second) => _distance
+                .as(LengthUnit.Meter, position, first.position)
+                .compareTo(
+                  _distance.as(LengthUnit.Meter, position, second.position),
+                ),
+          );
+    if (_candidateDriverId != null) {
+      for (final bus in candidates) {
+        if (bus.driverId == _candidateDriverId) return bus;
       }
-      _previousBusPositions[bus.driverId] = bus.position;
     }
+    return candidates.isEmpty ? null : candidates.first;
   }
 
-  double _bearingBetween(LatLng from, LatLng to) {
-    final lat1 = from.latitude * math.pi / 180;
-    final lat2 = to.latitude * math.pi / 180;
-    final deltaLng = (to.longitude - from.longitude) * math.pi / 180;
-    final y = math.sin(deltaLng) * math.cos(lat2);
-    final x =
-        math.cos(lat1) * math.sin(lat2) -
-        math.sin(lat1) * math.cos(lat2) * math.cos(deltaLng);
-    return (math.atan2(y, x) * 180 / math.pi + 360) % 360;
+  void _scheduleEntryCheck(Duration delay) {
+    _entryTimer?.cancel();
+    _entryTimer = Timer(delay, () {
+      _entryTimer = null;
+      unawaited(_updateRideSession());
+    });
   }
 
-  bool _isInsideVehicleFootprint(ActiveBus bus, LatLng commuterPosition) {
-    final heading = _busHeadings[bus.driverId];
-    final distance = _distance.as(
-      LengthUnit.Meter,
-      bus.position,
-      commuterPosition,
+  void _scheduleExitCheck(Duration delay) {
+    _exitTimer?.cancel();
+    _exitTimer = Timer(delay, () {
+      _exitTimer = null;
+      unawaited(_updateRideSession());
+    });
+  }
+
+  void _clearEntryCandidate() {
+    _entryTimer?.cancel();
+    _entryTimer = null;
+    _candidateDriverId = null;
+    _candidateSince = null;
+  }
+
+  void _clearExitCandidate() {
+    _exitTimer?.cancel();
+    _exitTimer = null;
+    _outsideSince = null;
+  }
+
+  void _setRideStatus({String? nearbyPlate, String? pendingPlate}) {
+    final state = viewState.value;
+    _setViewState(
+      _RideTrackingViewState(
+        message: state.message,
+        nearbyPlate: nearbyPlate,
+        pendingPlate: pendingPlate,
+        notificationId: state.notificationId,
+        notificationTitle: state.notificationTitle,
+        notificationMessage: state.notificationMessage,
+      ),
     );
-    if (heading == null) return distance <= _fallbackRadiusMeters;
+  }
 
-    final bearing = _bearingBetween(bus.position, commuterPosition);
-    final relativeBearing = (bearing - heading) * math.pi / 180;
-    final alongVehicle = distance * math.cos(relativeBearing);
-    final acrossVehicle = distance * math.sin(relativeBearing);
-    return alongVehicle.abs() <= _vehicleLengthMeters / 2 &&
-        acrossVehicle.abs() <= _vehicleWidthMeters / 2;
+  void _setRideNotification({
+    required String id,
+    required String title,
+    required String message,
+    String? nearbyPlate,
+  }) {
+    final state = viewState.value;
+    _setViewState(
+      _RideTrackingViewState(
+        message: state.message,
+        nearbyPlate: nearbyPlate,
+        notificationId: id,
+        notificationTitle: title,
+        notificationMessage: message,
+      ),
+    );
+  }
+
+  Future<bool> _beginRideSession(String uid, ActiveBus bus) async {
+    final rideId = _db.collection('rides').doc().id;
+    final startedAt = Timestamp.now();
+    final session = <String, dynamic>{
+      'rideId': rideId,
+      'driverId': bus.driverId,
+      'toPlate': bus.plateNumber,
+      'routeId': bus.routeName,
+      'startedAt': startedAt,
+    };
+    final created = await _db.runTransaction<bool>((transaction) async {
+      final userRef = _userRef(uid);
+      final userSnapshot = await transaction.get(userRef);
+      if (!userSnapshot.exists) {
+        throw StateError('Your user profile could not be found.');
+      }
+      final existingSession = userSnapshot.data()?['activeRideSession'];
+      if (existingSession is Map) return false;
+      transaction.update(userRef, {'activeRideSession': session});
+      return true;
+    });
+    if (created) _activeSession = session;
+    return created;
+  }
+
+  Future<bool> _completeRideSession(
+    String uid,
+    Map<String, dynamic> session,
+  ) async {
+    final storedRideId = session['rideId'];
+    final rideId = storedRideId is String && storedRideId.isNotEmpty
+        ? storedRideId
+        : _db.collection('rides').doc().id;
+    return _db.runTransaction<bool>((transaction) async {
+      final userRef = _userRef(uid);
+      final userSnapshot = await transaction.get(userRef);
+      if (!userSnapshot.exists) {
+        throw StateError('Your user profile could not be found.');
+      }
+      final currentValue = userSnapshot.data()?['activeRideSession'];
+      if (currentValue is! Map) return false;
+      final currentSession = Map<String, dynamic>.from(currentValue);
+      final currentRideId = currentSession['rideId'];
+      if (currentRideId is String &&
+          storedRideId is String &&
+          currentRideId != storedRideId) {
+        return false;
+      }
+
+      final endedAt = Timestamp.now();
+      final startedAt = currentSession['startedAt'];
+      final startedDate = startedAt is Timestamp
+          ? startedAt.toDate()
+          : endedAt.toDate();
+      final rideRef = _db.collection('rides').doc(rideId);
+      transaction.set(rideRef, {
+        'id': rideId,
+        'commuterUid': uid,
+        'driverId': currentSession['driverId'],
+        'toPlate': currentSession['toPlate'],
+        'routeId': currentSession['routeId'],
+        'startedAt': startedAt,
+        'endedAt': endedAt,
+        'durationSeconds': endedAt.toDate().difference(startedDate).inSeconds,
+        'status': 'completed',
+      });
+      transaction.update(userRef, {'activeRideSession': FieldValue.delete()});
+      return true;
+    });
   }
 
   Future<void> _updateRideSession() async {
@@ -266,87 +407,118 @@ class _CommuterRideTracker {
       return;
     }
 
-    final nearbyBuses =
-        _trackedBuses
-            .where(
-              (bus) => bus.isActive && _isInsideVehicleFootprint(bus, position),
-            )
-            .toList()
-          ..sort(
-            (first, second) => _distance
-                .as(LengthUnit.Meter, position, first.position)
-                .compareTo(
-                  _distance.as(LengthUnit.Meter, position, second.position),
-                ),
-          );
-    final nearbyBus = nearbyBuses.isEmpty ? null : nearbyBuses.first;
-    _setViewState(
-      _RideTrackingViewState(
-        message: viewState.value.message,
-        nearbyPlate: nearbyBus?.plateNumber,
-      ),
-    );
-
     _updatingSession = true;
     try {
-      final userRef = _userRef(uid);
-      await _db.runTransaction((transaction) async {
-        final userSnapshot = await transaction.get(userRef);
-        if (!userSnapshot.exists) {
-          throw StateError('Your user profile could not be found.');
-        }
+      if (!_activeSessionLoaded) {
+        await _loadActiveRideSession(uid);
+        if (!_activeSessionLoaded) return;
+      }
 
-        final userData = userSnapshot.data()!;
-        final activeSessionValue = userData['activeRideSession'];
-        final activeSession = activeSessionValue is Map
-            ? Map<String, dynamic>.from(activeSessionValue)
-            : null;
-        if (nearbyBus == null && activeSession == null) return;
-        if (nearbyBus != null &&
-            activeSession?['driverId'] == nearbyBus.driverId) {
+      final now = DateTime.now();
+      final activeSession = _activeSession;
+      if (activeSession == null) {
+        _clearExitCandidate();
+        final nearbyBus = _nearestBusWithin(position, _entryRadiusMeters);
+        if (nearbyBus == null) {
+          _clearEntryCandidate();
+          _setRideStatus();
           return;
         }
 
-        final updates = <String, dynamic>{};
-        if (activeSession != null) {
-          final endedAt = Timestamp.now();
-          final startedAt = activeSession['startedAt'];
-          final startedDate = startedAt is Timestamp
-              ? startedAt.toDate()
-              : endedAt.toDate();
-          final rideId = activeSession['rideId'];
-          final rideRef = rideId is String && rideId.isNotEmpty
-              ? _db.collection('rides').doc(rideId)
-              : _db.collection('rides').doc();
-          transaction.set(rideRef, {
-            'id': rideRef.id,
-            'commuterUid': uid,
-            'driverId': activeSession['driverId'],
-            'toPlate': activeSession['toPlate'],
-            'routeId': activeSession['routeId'],
-            'startedAt': startedAt,
-            'endedAt': endedAt,
-            'durationSeconds': endedAt
-                .toDate()
-                .difference(startedDate)
-                .inSeconds,
-            'status': 'completed',
-          });
+        if (_candidateDriverId != nearbyBus.driverId ||
+            _candidateSince == null) {
+          _clearEntryCandidate();
+          _candidateDriverId = nearbyBus.driverId;
+          _candidateSince = now;
+          _scheduleEntryCheck(_entryDwell);
         }
 
-        if (nearbyBus == null) {
-          updates['activeRideSession'] = FieldValue.delete();
-        } else {
-          updates['activeRideSession'] = {
-            'rideId': _db.collection('rides').doc().id,
-            'driverId': nearbyBus.driverId,
-            'toPlate': nearbyBus.plateNumber,
-            'routeId': nearbyBus.routeName,
-            'startedAt': Timestamp.now(),
-          };
+        final elapsed = now.difference(_candidateSince!);
+        if (elapsed < _entryDwell) {
+          if (_entryTimer == null) {
+            _scheduleEntryCheck(_entryDwell - elapsed);
+          }
+          _setRideStatus(pendingPlate: nearbyBus.plateNumber);
+          return;
         }
-        transaction.update(userRef, updates);
-      });
+
+        _entryTimer?.cancel();
+        _entryTimer = null;
+        final started = await _beginRideSession(uid, nearbyBus);
+        _clearEntryCandidate();
+        if (!started) {
+          await _loadActiveRideSession(uid);
+          return;
+        }
+        _setRideNotification(
+          id: 'started:${_activeSession!['rideId']}',
+          title: 'Ride started',
+          message: 'Ride detected on PUV ${nearbyBus.plateNumber}.',
+          nearbyPlate: nearbyBus.plateNumber,
+        );
+        return;
+      }
+
+      _clearEntryCandidate();
+      final activePlate = activeSession['toPlate'];
+      if (_busTracking.serverConnectionStatus.value !=
+          'Connected to live PUV service') {
+        _clearExitCandidate();
+        _setRideStatus(nearbyPlate: activePlate is String ? activePlate : null);
+        return;
+      }
+
+      ActiveBus? activeBus;
+      if (activePlate is String) {
+        for (final bus in _trackedBuses) {
+          if (bus.isActive && bus.plateNumber == activePlate) {
+            activeBus = bus;
+            break;
+          }
+        }
+      }
+
+      final isWithinExitRadius =
+          activeBus != null &&
+          _distance.as(LengthUnit.Meter, position, activeBus.position) <=
+              _exitRadiusMeters;
+      if (isWithinExitRadius) {
+        _clearExitCandidate();
+        _setRideStatus(nearbyPlate: activePlate as String?);
+        return;
+      }
+
+      _outsideSince ??= now;
+      final outsideDuration = now.difference(_outsideSince!);
+      if (outsideDuration < _exitDwell) {
+        if (_exitTimer == null) {
+          _scheduleExitCheck(_exitDwell - outsideDuration);
+        }
+        _setRideStatus(nearbyPlate: activePlate as String?);
+        return;
+      }
+
+      _exitTimer?.cancel();
+      _exitTimer = null;
+      final completed = await _completeRideSession(uid, activeSession);
+      if (!completed) {
+        await _loadActiveRideSession(uid);
+        return;
+      }
+
+      final completedPlate = activePlate is String ? activePlate : 'PUV';
+      final completedRideId =
+          activeSession['rideId']?.toString() ??
+          now.microsecondsSinceEpoch.toString();
+      _activeSession = null;
+      _activeSessionLoaded = true;
+      _outsideSince = null;
+      _setRideNotification(
+        id: 'completed:$completedRideId',
+        title: 'Ride completed',
+        message: 'Your ride on PUV $completedPlate was added to Recent Rides.',
+      );
+      _updateRequested = true;
     } catch (error) {
       _setMessage('Unable to update ride history: $error');
     } finally {
@@ -370,6 +542,8 @@ class RidesScreen extends StatefulWidget {
 }
 
 class _RidesScreenState extends State<RidesScreen> {
+  static String? _lastShownNotificationId;
+
   final FirebaseFirestore _db = FirebaseFirestore.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final _tracker = _CommuterRideTracker.instance;
@@ -401,7 +575,21 @@ class _RidesScreenState extends State<RidesScreen> {
   }
 
   void _onTrackerStateChanged() {
-    if (mounted) setState(() {});
+    if (!mounted) return;
+    final trackerState = _tracker.viewState.value;
+    final notificationId = trackerState.notificationId;
+    final notificationMessage = trackerState.notificationMessage;
+    if (notificationId != null &&
+        notificationId != _lastShownNotificationId &&
+        notificationMessage != null) {
+      _lastShownNotificationId = notificationId;
+      PopupNotif(
+        message: notificationMessage,
+        title: trackerState.notificationTitle,
+        type: NotifType.info,
+      ).show(context);
+    }
+    setState(() {});
   }
 
   Future<void> _checkNearbyPuv() async {
@@ -453,9 +641,17 @@ class _RidesScreenState extends State<RidesScreen> {
         }
         transaction.update(userRef, {'savedRides': savedRides});
       });
-      _showMessage(isFavorite ? 'Ride removed from favorites.' : 'Ride saved.', 'Info', NotifType.info);
+      _showMessage(
+        isFavorite ? 'Ride removed from favorites.' : 'Ride saved.',
+        'Info',
+        NotifType.info,
+      );
     } catch (error) {
-      _showMessage('Unable to update favorites: $error', 'Error', NotifType.error);
+      _showMessage(
+        'Unable to update favorites: $error',
+        'Error',
+        NotifType.error,
+      );
     }
   }
 
@@ -470,7 +666,7 @@ class _RidesScreenState extends State<RidesScreen> {
         }
         transaction.delete(rideRef);
       });
-      _showMessage('Ride deleted.','Info', NotifType.info);
+      _showMessage('Ride deleted.', 'Info', NotifType.info);
     } catch (error) {
       _showMessage('Unable to delete ride: $error', 'Error', NotifType.error);
     }
@@ -534,7 +730,7 @@ class _RidesScreenState extends State<RidesScreen> {
 
   void _showMessage(String message, String title, NotifType type) {
     if (!mounted) return;
-    PopupNotif(message: message, title: title, type: type,).show(context);
+    PopupNotif(message: message, title: title, type: type).show(context);
   }
 
   @override
@@ -583,6 +779,12 @@ class _RidesScreenState extends State<RidesScreen> {
                   Text(
                     'Ride in progress near PUV '
                     '${_tracker.viewState.value.nearbyPlate}',
+                  ),
+                ] else if (_tracker.viewState.value.pendingPlate != null) ...[
+                  const SizedBox(height: 8),
+                  Text(
+                    'Stay near PUV ${_tracker.viewState.value.pendingPlate} '
+                    'for 30 seconds to register the ride.',
                   ),
                 ],
               ],
@@ -666,80 +868,84 @@ class _RidesScreenState extends State<RidesScreen> {
                           }
 
                           return ListView.separated(
-                        padding: const EdgeInsets.fromLTRB(20, 4, 20, 96),
-                        itemCount: rides.length,
-                        separatorBuilder: (_, _) => const SizedBox(height: 12),
-                        itemBuilder: (context, index) {
-                          final ride = rides[index];
-                          final rideId = ride['id'] as String? ?? '';
-                          final isFavorite = favoriteIds.contains(rideId);
-                          final route =
-                              ride['routeId'] as String? ?? 'Unknown route';
-                          final plate = ride['toPlate'] as String? ?? 'N/A';
+                            padding: const EdgeInsets.fromLTRB(20, 4, 20, 96),
+                            itemCount: rides.length,
+                            separatorBuilder: (_, _) =>
+                                const SizedBox(height: 12),
+                            itemBuilder: (context, index) {
+                              final ride = rides[index];
+                              final rideId = ride['id'] as String? ?? '';
+                              final isFavorite = favoriteIds.contains(rideId);
+                              final route =
+                                  ride['routeId'] as String? ?? 'Unknown route';
+                              final plate = ride['toPlate'] as String? ?? 'N/A';
 
-                          return Card(
-                            child: Padding(
-                              padding: const EdgeInsets.all(16),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Row(
+                              return Card(
+                                child: Padding(
+                                  padding: const EdgeInsets.all(16),
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
                                     children: [
-                                      Icon(
-                                        Icons.route,
-                                        color: theme.colorScheme.primary,
+                                      Row(
+                                        children: [
+                                          Icon(
+                                            Icons.route,
+                                            color: theme.colorScheme.primary,
+                                          ),
+                                          const SizedBox(width: 12),
+                                          Expanded(
+                                            child: Text(
+                                              route,
+                                              style: theme.textTheme.titleMedium
+                                                  ?.copyWith(
+                                                    fontWeight: FontWeight.bold,
+                                                  ),
+                                            ),
+                                          ),
+                                          IconButton(
+                                            tooltip: isFavorite
+                                                ? 'Unfavorite ride'
+                                                : 'Favorite ride',
+                                            onPressed: () => _toggleFavorite(
+                                              uid,
+                                              ride,
+                                              isFavorite,
+                                            ),
+                                            icon: Icon(
+                                              isFavorite
+                                                  ? Icons.favorite
+                                                  : Icons.favorite_border,
+                                            ),
+                                          ),
+                                          IconButton(
+                                            tooltip: 'Delete ride',
+                                            onPressed: () =>
+                                                _confirmDeleteRide(uid, rideId),
+                                            icon: const Icon(
+                                              Icons.delete_outline,
+                                            ),
+                                          ),
+                                        ],
                                       ),
-                                      const SizedBox(width: 12),
-                                      Expanded(
-                                        child: Text(
-                                          route,
-                                          style: theme.textTheme.titleMedium
-                                              ?.copyWith(
-                                                fontWeight: FontWeight.bold,
-                                              ),
-                                        ),
+                                      Text('Vehicle: $plate'),
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        'Ended: ${_formatDate(ride['endedAt'])}',
+                                        style: theme.textTheme.bodySmall,
                                       ),
-                                      IconButton(
-                                        tooltip: isFavorite
-                                            ? 'Unfavorite ride'
-                                            : 'Favorite ride',
-                                        onPressed: () => _toggleFavorite(
-                                          uid,
-                                          ride,
-                                          isFavorite,
+                                      Align(
+                                        alignment: Alignment.centerRight,
+                                        child: TextButton(
+                                          onPressed: () =>
+                                              _showRideDetails(context, ride),
+                                          child: const Text('See More'),
                                         ),
-                                        icon: Icon(
-                                          isFavorite
-                                              ? Icons.favorite
-                                              : Icons.favorite_border,
-                                        ),
-                                      ),
-                                      IconButton(
-                                        tooltip: 'Delete ride',
-                                        onPressed: () =>
-                                            _confirmDeleteRide(uid, rideId),
-                                        icon: const Icon(Icons.delete_outline),
                                       ),
                                     ],
                                   ),
-                                  Text('Vehicle: $plate'),
-                                  const SizedBox(height: 4),
-                                  Text(
-                                    'Ended: ${_formatDate(ride['endedAt'])}',
-                                    style: theme.textTheme.bodySmall,
-                                  ),
-                                  Align(
-                                    alignment: Alignment.centerRight,
-                                    child: TextButton(
-                                      onPressed: () =>
-                                          _showRideDetails(context, ride),
-                                      child: const Text('See More'),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          );
+                                ),
+                              );
                             },
                           );
                         },

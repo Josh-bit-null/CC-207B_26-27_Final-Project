@@ -131,29 +131,49 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
         if (mounted) setState(() => _isRideActive = false);
       } catch (error) {
         if (!mounted) return;
-        PopupNotif(message: 'Unable to stop sharing location: $error', title: 'Error', type: NotifType.error).show(context);
+        PopupNotif(
+          message: 'Unable to stop sharing location: $error',
+          title: 'Error',
+          type: NotifType.error,
+        ).show(context);
       }
       return;
     }
     if (_activePlate.isEmpty) {
-      PopupNotif(message: 'Active plate is not set', title: 'Warning', type: NotifType.warning,).show(context);
+      PopupNotif(
+        message: 'Active plate is not set',
+        title: 'Warning',
+        type: NotifType.warning,
+      ).show(context);
       return;
     }
-    await _busTracking.startRide(
-      driverId: uid,
-      plateNumber: _activePlate,
-      routeName: 'Iloilo Route 4',
-    );
-    setState(() => _isRideActive = true);
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          'Ride started. ${_busTracking.serverConnectionStatus.value}. '
-          'Live sharing will begin when GPS and the connection are ready.',
+    try {
+      final hasLocationAccess = await _busTracking.startRide(
+        driverId: uid,
+        plateNumber: _activePlate,
+        routeName: 'Iloilo Route 4',
+      );
+      if (!mounted) return;
+      setState(() => _isRideActive = true);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            hasLocationAccess
+                ? 'Ride started. '
+                      '${_busTracking.serverConnectionStatus.value}.'
+                : 'Ride started locally, but GPS is unavailable and your '
+                      'vehicle location is not being shared.',
+          ),
         ),
-      ),
-    );
+      );
+    } catch (error) {
+      if (!mounted) return;
+      PopupNotif(
+        message: 'Unable to start ride: $error',
+        title: 'Error',
+        type: NotifType.error,
+      ).show(context);
+    }
   }
 
   @override
@@ -212,7 +232,9 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
 
               Navigator.push(
                 context,
-                MaterialPageRoute(builder: (context) => const TripsScreen()),
+                MaterialPageRoute(
+                  builder: (context) => const StartRideScreen(),
+                ),
               );
             },
           ),
@@ -225,7 +247,7 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
 
               Navigator.push(
                 context,
-                MaterialPageRoute(builder: (context) => const VehiclesScreen()),
+                MaterialPageRoute(builder: (context) => const TripsScreen()),
               );
             },
           ),
@@ -238,9 +260,7 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
 
               Navigator.push(
                 context,
-                MaterialPageRoute(
-                  builder: (context) => const VehiclesScreen(),
-                ),
+                MaterialPageRoute(builder: (context) => const VehiclesScreen()),
               );
             },
           ),

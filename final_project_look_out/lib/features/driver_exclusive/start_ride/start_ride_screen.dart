@@ -80,13 +80,21 @@ class _StartRideScreenState extends State<StartRideScreen> {
 
     try {
       if (_isRideActive) {
-        _tracking.stopRide(uid);
-        _showMessage('Ride ended. Trip was added to this session’s history.', 'Info', NotifType.info);
+        await _tracking.stopRide(uid);
+        _showMessage(
+          'Ride ended. Trip was added to this session’s history.',
+          'Info',
+          NotifType.info,
+        );
         return;
       }
 
       if (plate.isEmpty) {
-        _showMessage('Add a vehicle plate in My Vehicles first.', 'Warning', NotifType.warning);
+        _showMessage(
+          'Add a vehicle plate in My Vehicles first.',
+          'Warning',
+          NotifType.warning,
+        );
         return;
       }
 
@@ -96,17 +104,31 @@ class _StartRideScreenState extends State<StartRideScreen> {
         'updatedAt': FieldValue.serverTimestamp(),
       });
 
-      await _tracking.startRide(
+      final hasLocationAccess = await _tracking.startRide(
         driverId: uid,
         plateNumber: plate,
         routeName: _routes[_selectedRouteId]!,
       );
-      _showMessage(
-        'Ride started. ${_tracking.serverConnectionStatus.value}. '
-        'Live sharing will begin when GPS and the connection are ready.',
-      );
+      if (hasLocationAccess) {
+        _showMessage(
+          'Ride started. ${_tracking.serverConnectionStatus.value}.',
+          'Ride started',
+          NotifType.info,
+        );
+      } else {
+        _showMessage(
+          'Ride started locally, but GPS is unavailable and your vehicle '
+              'location is not being shared.',
+          'Location unavailable',
+          NotifType.warning,
+        );
+      }
     } catch (error) {
-      _showMessage('Unable to ${_isRideActive ? 'end' : 'start'} ride: $error', 'Error', NotifType.error);
+      _showMessage(
+        'Unable to ${_isRideActive ? 'end' : 'start'} ride: $error',
+        'Error',
+        NotifType.error,
+      );
     } finally {
       if (mounted) setState(() => _isBusy = false);
     }

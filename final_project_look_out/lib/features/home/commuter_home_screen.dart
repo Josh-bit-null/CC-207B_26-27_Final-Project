@@ -22,8 +22,6 @@ import '../../widgets/lookout_drawer.dart';
 import '../../widgets/congestion_map_layers.dart';
 
 //services and packages
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:geolocator/geolocator.dart';
@@ -58,8 +56,6 @@ class _CommuterHomeScreenState extends State<CommuterHomeScreen> {
 
   final CongestionPredictorService _predictor = CongestionPredictorService();
   List<CorridorPrediction> _predictions = [];
-  LatLng? _commuterPosition;
-  StreamSubscription<Position>? _locationSubscription;
 
   // Sample LPTRP route coordinates
   final List<LatLng> _sampleRoutePoints = const [
@@ -84,71 +80,39 @@ class _CommuterHomeScreenState extends State<CommuterHomeScreen> {
     return routes;
   }
 
-  List<ActiveBus> _mergeBuses(
-    List<ActiveBus> remoteBuses,
-    List<ActiveBus> localBuses,
-  ) {
-    final busesByDriver = {for (final bus in remoteBuses) bus.driverId: bus};
-    for (final bus in localBuses) {
-      busesByDriver[bus.driverId] = bus;
-    }
-    return busesByDriver.values.toList();
-  }
-
   Future<void> _showRouteFilter() async {
     final selectedRoute = await showModalBottomSheet<String>(
       context: context,
       builder: (sheetContext) => SafeArea(
-        child: StreamBuilder<List<ActiveBus>>(
-          stream: _busTracking.remoteActiveBuses,
-          builder: (context, remoteSnapshot) {
-            return ValueListenableBuilder<List<ActiveBus>>(
-              valueListenable: _busTracking.activeBuses,
-              builder: (context, localBuses, child) {
-                final routes = _routesFrom(
-                  _mergeBuses(
-                    remoteSnapshot.data ?? const <ActiveBus>[],
-                    localBuses,
+        child: ValueListenableBuilder<List<ActiveBus>>(
+          valueListenable: _busTracking.activeBuses,
+          builder: (context, buses, child) {
+            final routes = _routesFrom(buses);
+            return ListView(
+              shrinkWrap: true,
+              padding: const EdgeInsets.symmetric(vertical: 8),
+              children: [
+                const ListTile(title: Text('Select route')),
+                ListTile(
+                  leading: Icon(
+                    _selectedRoute == _allRoutes
+                        ? Icons.radio_button_checked
+                        : Icons.radio_button_unchecked,
                   ),
-                );
-                return ListView(
-                  shrinkWrap: true,
-                  padding: const EdgeInsets.symmetric(vertical: 8),
-                  children: [
-                    const ListTile(title: Text('Select route')),
-                    ListTile(
-                      leading: Icon(
-                        _selectedRoute == _allRoutes
-                            ? Icons.radio_button_checked
-                            : Icons.radio_button_unchecked,
-                      ),
-                      title: const Text('All routes'),
-                      onTap: () => Navigator.pop(sheetContext, _allRoutes),
+                  title: const Text('All routes'),
+                  onTap: () => Navigator.pop(sheetContext, _allRoutes),
+                ),
+                for (final route in routes)
+                  ListTile(
+                    leading: Icon(
+                      _selectedRoute == route
+                          ? Icons.radio_button_checked
+                          : Icons.radio_button_unchecked,
                     ),
-                    if (remoteSnapshot.hasError)
-                      ListTile(
-                        title: Text(
-                          'Unable to load remote routes: '
-                          '${remoteSnapshot.error}',
-                        ),
-                      ),
-                    if (remoteSnapshot.connectionState ==
-                            ConnectionState.waiting &&
-                        routes.isEmpty)
-                      const ListTile(title: Text('Loading active routes...')),
-                    for (final route in routes)
-                      ListTile(
-                        leading: Icon(
-                          _selectedRoute == route
-                              ? Icons.radio_button_checked
-                              : Icons.radio_button_unchecked,
-                        ),
-                        title: Text(route),
-                        onTap: () => Navigator.pop(sheetContext, route),
-                      ),
-                  ],
-                );
-              },
+                    title: Text(route),
+                    onTap: () => Navigator.pop(sheetContext, route),
+                  ),
+              ],
             );
           },
         ),
@@ -164,6 +128,11 @@ class _CommuterHomeScreenState extends State<CommuterHomeScreen> {
     _busTracking.connectToServer();
     _loadTrafficForecast();
     _startLocationUpdates();
+  }
+
+  Future<void> _showCommuterMap() async {
+    if (!mounted) return;
+    setState(() => selectedIndex = 0);
   }
 
   Future<void> _loadTrafficForecast() async {
@@ -771,6 +740,10 @@ class _CommuterHomeScreenState extends State<CommuterHomeScreen> {
           RidesScreen(
             onMenuPressed: () {
               _scaffoldKey.currentState?.openDrawer();
+            },
+            onShowMap: () async {
+              if (!mounted) return;
+              setState(() => selectedIndex = 0);
             },
           ),
           SavedScreen(
