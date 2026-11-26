@@ -398,6 +398,20 @@ class _CommuterHomeScreenState extends State<CommuterHomeScreen> {
               onMenuPressed: () {
                 _scaffoldKey.currentState?.openDrawer();
               },
+              actions: [
+                IconButton(
+                  tooltip: 'FAQs',
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const FaqsScreen(),
+                      ),
+                    );
+                  },
+                  icon: const Icon(Icons.help_outline),
+                ),
+              ],
             )
           : null,
 

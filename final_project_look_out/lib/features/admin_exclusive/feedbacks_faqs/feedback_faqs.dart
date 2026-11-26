@@ -481,65 +481,14 @@ Future<void> _editFaq(
   BuildContext context, [
   QueryDocumentSnapshot<Map<String, dynamic>>? faq,
 ]) async {
-  final questionController = TextEditingController(
-    text: faq?.data()['question'] as String? ?? '',
-  );
-  final answerController = TextEditingController(
-    text: faq?.data()['answer'] as String? ?? '',
-  );
-  final formKey = GlobalKey<FormState>();
   final values = await showDialog<(String, String)>(
     context: context,
-    builder: (dialogContext) => AlertDialog(
-      title: Text(faq == null ? 'Add FAQ' : 'Edit FAQ'),
-      content: Form(
-        key: formKey,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextFormField(
-              controller: questionController,
-              decoration: const InputDecoration(labelText: 'Question'),
-              validator: (value) => value == null || value.trim().isEmpty
-                  ? 'Enter a question.'
-                  : null,
-            ),
-            TextFormField(
-              controller: answerController,
-              decoration: const InputDecoration(
-                labelText: 'Answer',
-                alignLabelWithHint: true,
-              ),
-              minLines: 2,
-              maxLines: 5,
-              validator: (value) => value == null || value.trim().isEmpty
-                  ? 'Enter an answer.'
-                  : null,
-            ),
-          ],
-        ),
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(dialogContext),
-          child: const Text('Cancel'),
-        ),
-        TextButton(
-          onPressed: () {
-            if (formKey.currentState!.validate()) {
-              Navigator.pop(dialogContext, (
-                questionController.text.trim(),
-                answerController.text.trim(),
-              ));
-            }
-          },
-          child: const Text('Save'),
-        ),
-      ],
+    builder: (dialogContext) => _FaqEditorDialog(
+      initialQuestion: faq?.data()['question'] as String? ?? '',
+      initialAnswer: faq?.data()['answer'] as String? ?? '',
+      isEditing: faq != null,
     ),
   );
-  questionController.dispose();
-  answerController.dispose();
   if (values == null || !context.mounted) return;
 
   final db = FirebaseFirestore.instance;
@@ -651,5 +600,92 @@ Future<void> _setFeedbackStatus(
     if (context.mounted) {
       PopupNotif(message: 'Unable to update feedback: ${error.message}', title: 'Error', type: NotifType.error,).show(context);
     }
+  }
+}
+
+class _FaqEditorDialog extends StatefulWidget {
+  const _FaqEditorDialog({
+    required this.initialQuestion,
+    required this.initialAnswer,
+    required this.isEditing,
+  });
+
+  final String initialQuestion;
+  final String initialAnswer;
+  final bool isEditing;
+
+  @override
+  State<_FaqEditorDialog> createState() => _FaqEditorDialogState();
+}
+
+class _FaqEditorDialogState extends State<_FaqEditorDialog> {
+  final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
+  late final TextEditingController _questionController;
+  late final TextEditingController _answerController;
+
+  @override
+  void initState() {
+    super.initState();
+    _questionController = TextEditingController(text: widget.initialQuestion);
+    _answerController = TextEditingController(text: widget.initialAnswer);
+  }
+
+  @override
+  void dispose() {
+    _questionController.dispose();
+    _answerController.dispose();
+    super.dispose();
+  }
+
+  void _save() {
+    if (!_formKey.currentState!.validate()) return;
+    Navigator.pop(context, (
+      _questionController.text.trim(),
+      _answerController.text.trim(),
+    ));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: Text(widget.isEditing ? 'Edit FAQ' : 'Add FAQ'),
+      content: Form(
+        key: _formKey,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextFormField(
+              controller: _questionController,
+              decoration: const InputDecoration(labelText: 'Question'),
+              validator: (value) => value == null || value.trim().isEmpty
+                  ? 'Enter a question.'
+                  : null,
+            ),
+            TextFormField(
+              controller: _answerController,
+              decoration: const InputDecoration(
+                labelText: 'Answer',
+                alignLabelWithHint: true,
+              ),
+              minLines: 2,
+              maxLines: 5,
+              validator: (value) => value == null || value.trim().isEmpty
+                  ? 'Enter an answer.'
+                  : null,
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Cancel'),
+        ),
+        FilledButton(
+          onPressed: _save,
+          child: const Text('Save'),
+        ),
+      ],
+    );
   }
 }
