@@ -144,34 +144,10 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
   }
 
   Future<void> _showAddPlateDialog(String uid) async {
-    final controller = TextEditingController();
     final input = await showDialog<String>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Add a vehicle'),
-        content: TextField(
-          controller: controller,
-          autofocus: true,
-          textCapitalization: TextCapitalization.characters,
-          decoration: const InputDecoration(
-            labelText: 'Plate number',
-            hintText: 'e.g. ABC-1234',
-          ),
-          onSubmitted: (value) => Navigator.pop(context, value),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(context, controller.text),
-            child: const Text('Add'),
-          ),
-        ],
-      ),
+      builder: (context) => const _AddVehicleDialog(),
     );
-    controller.dispose();
 
     if (input == null || !mounted) return;
     try {
@@ -307,7 +283,7 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
                           ),
                         ),
                       )
-                    else
+                    else ...[
                       ...plates.map((plate) {
                         final isActive = plate == activePlate;
                         return Card(
@@ -364,6 +340,18 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
                           ),
                         );
                       }),
+                      const SizedBox(height: 4),
+                      SizedBox(
+                        width: double.infinity,
+                        child: FilledButton.icon(
+                          onPressed: _hasActiveRide
+                              ? null
+                              : () => _showAddPlateDialog(uid),
+                          icon: const Icon(Icons.add),
+                          label: const Text('Add vehicle'),
+                        ),
+                      ),
+                    ],
                     const SizedBox(height: 8),
                     Text(
                       'Vehicle assignments are saved to your driver profile.',
@@ -375,6 +363,50 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
                 );
               },
             ),
+    );
+  }
+}
+
+class _AddVehicleDialog extends StatefulWidget {
+  const _AddVehicleDialog();
+
+  @override
+  State<_AddVehicleDialog> createState() => _AddVehicleDialogState();
+}
+
+class _AddVehicleDialogState extends State<_AddVehicleDialog> {
+  final TextEditingController _controller = TextEditingController();
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Add a vehicle'),
+      content: TextField(
+        controller: _controller,
+        autofocus: true,
+        textCapitalization: TextCapitalization.characters,
+        decoration: const InputDecoration(
+          labelText: 'Plate number',
+          hintText: 'e.g. ABC-1234',
+        ),
+        onSubmitted: (value) => Navigator.pop(context, value),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Cancel'),
+        ),
+        FilledButton(
+          onPressed: () => Navigator.pop(context, _controller.text),
+          child: const Text('Add'),
+        ),
+      ],
     );
   }
 }

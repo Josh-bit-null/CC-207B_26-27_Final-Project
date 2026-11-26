@@ -31,6 +31,7 @@ class LookOutAppBar extends StatelessWidget implements PreferredSizeWidget {
           fontWeight: FontWeight.bold,
         ),
       ),
+      actions: actions,
     );
   }
 

@@ -47,6 +47,7 @@ class DriverTrip {
     required this.routeName,
     required this.startedAt,
     required this.endedAt,
+    this.tripId,
   });
 
   final String driverId;
@@ -54,6 +55,11 @@ class DriverTrip {
   final String routeName;
   final DateTime startedAt;
   final DateTime endedAt;
+  final String? tripId;
+
+  String get resolvedId =>
+      tripId ??
+      '${Uri.encodeComponent(driverId)}_${startedAt.microsecondsSinceEpoch}';
 
   Duration get duration => endedAt.difference(startedAt);
 }
@@ -383,6 +389,18 @@ class LocalBusTrackingService {
 
   Future<void> stopRide(String driverId) {
     return _stopRide(driverId, recordTrip: true);
+  }
+
+  Future<void> deleteTrip(DriverTrip trip) async {
+    final targetId = trip.resolvedId;
+    completedTrips.value = completedTrips.value
+        .where((item) => item.resolvedId != targetId)
+        .toList();
+
+    await FirebaseFirestore.instance
+        .collection('driver_trips')
+        .doc(targetId)
+        .delete();
   }
 
   Future<void> _stopRide(String driverId, {required bool recordTrip}) async {
