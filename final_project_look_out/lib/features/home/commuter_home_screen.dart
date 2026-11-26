@@ -328,14 +328,14 @@ class _CommuterHomeScreenState extends State<CommuterHomeScreen> {
 
           ListTile(
             leading: const Icon(Icons.logout),
-            title: const Text('Sign Out'),
+            title: const Text('Log Out'),
             onTap: () async {
               final confirmed = await showDialog<bool>(
                 context: context,
                 builder: (context) => const ConfirmationDialog(
-                  title: 'Sign Out',
-                  message: 'Are you sure you want to sign out?',
-                  confirmText: 'Sign Out',
+                  title: 'Log Out',
+                  message: 'Are you sure you want to log out?',
+                  confirmText: 'Log Out',
                 ),
               );
 

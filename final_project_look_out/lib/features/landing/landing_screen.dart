@@ -240,7 +240,7 @@ class _LandingScreenState extends State<LandingScreen> {
       child: Scaffold(
         backgroundColor: AppColor.brandNavy,
         body: isLoading
-            ? const Loader.linear()
+            ? const Loader.circular()
             : SafeArea(
                 child: LayoutBuilder(
                   builder: (context, constraints) {
