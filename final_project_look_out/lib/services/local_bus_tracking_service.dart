@@ -240,7 +240,7 @@ class LocalBusTrackingService {
 
     serverConnectionStatus.value = 'Connecting to live PUV service';
     final socket = socket_io.io(_socketUrl, <String, dynamic>{
-      'transports': <String>['websocket'],
+      if (!kIsWeb) 'transports': <String>['websocket'],
       'autoConnect': false,
       'reconnection': true,
       'reconnectionDelay': 1000,
@@ -259,7 +259,8 @@ class LocalBusTrackingService {
       serverConnectionStatus.value = 'Reconnecting to live PUV service';
     });
     socket.onConnectError((error) {
-      serverConnectionStatus.value = 'Unable to connect to live PUV service';
+      serverConnectionStatus.value =
+          'Unable to connect to live PUV service: $error';
     });
     socket.on('activeDrivers', _handleActiveDrivers);
     socket.on('driverMoved', _handleDriverMoved);

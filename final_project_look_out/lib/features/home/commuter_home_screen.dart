@@ -50,6 +50,7 @@ class _CommuterHomeScreenState extends State<CommuterHomeScreen> {
   StreamSubscription<Position>? _locationSubscription;
   LatLng? _commuterPosition;
   String _selectedRoute = _allRoutes;
+  bool _hasAutoFocusedOnPuvs = false;
 
   // Iloilo City Proper coordinates
   static const LatLng _iloiloCenter = LatLng(10.6969, 122.5644);
@@ -125,9 +126,43 @@ class _CommuterHomeScreenState extends State<CommuterHomeScreen> {
   @override
   void initState() {
     super.initState();
+    _busTracking.activeBuses.addListener(_focusOnActivePuvs);
     _busTracking.connectToServer();
     _loadTrafficForecast();
     _startLocationUpdates();
+    _focusOnActivePuvs();
+  }
+
+  void _focusOnActivePuvs() {
+    final activeBuses = _busTracking.activeBuses.value
+        .where((bus) => bus.isActive)
+        .toList();
+    if (activeBuses.isEmpty) {
+      _hasAutoFocusedOnPuvs = false;
+      return;
+    }
+    if (_hasAutoFocusedOnPuvs) return;
+
+    _hasAutoFocusedOnPuvs = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final currentBuses = _busTracking.activeBuses.value
+          .where((bus) => bus.isActive)
+          .toList();
+      if (currentBuses.isEmpty) {
+        _hasAutoFocusedOnPuvs = false;
+        return;
+      }
+
+      _mapController.fitCamera(
+        CameraFit.coordinates(
+          coordinates: currentBuses.map((bus) => bus.position).toList(),
+          padding: const EdgeInsets.all(64),
+          minZoom: 11,
+          maxZoom: 15,
+        ),
+      );
+    });
   }
 
   Future<void> _showCommuterMap() async {
@@ -335,6 +370,7 @@ class _CommuterHomeScreenState extends State<CommuterHomeScreen> {
   @override
   void dispose() {
     _locationSubscription?.cancel();
+    _busTracking.activeBuses.removeListener(_focusOnActivePuvs);
     _mapController.dispose();
     super.dispose();
   }
