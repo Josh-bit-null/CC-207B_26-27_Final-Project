@@ -166,9 +166,12 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
       return;
     }
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Start a ride to center on your PUV.')),
-    );
+    PopupNotif(
+      message: 'Start a ride to center on your PUV.',
+      title: 'Info',
+      type: NotifType.info,
+    ).show(context);
+
   }
 
   Future<void> _toggleRide() async {
@@ -208,17 +211,13 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
       );
       if (!mounted) return;
       setState(() => _isRideActive = true);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            hasLocationAccess
-                ? 'Ride started. '
-                      '${_busTracking.serverConnectionStatus.value}.'
-                : 'Ride started locally, but GPS is unavailable and your '
-                      'vehicle location is not being shared.',
-          ),
-        ),
-      );
+      PopupNotif(
+        message: hasLocationAccess
+            ? 'Ride started. '
+                  '${_busTracking.serverConnectionStatus.value}.'
+            : 'Ride started locally, but GPS is unavailable and your '
+                  'vehicle location is not being shared.',
+      ).show(context);
     } catch (error) {
       if (!mounted) return;
       PopupNotif(
@@ -694,15 +693,11 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
                                                     if (!context.mounted) {
                                                       return;
                                                     }
-                                                    ScaffoldMessenger.of(
-                                                      context,
-                                                    ).showSnackBar(
-                                                      SnackBar(
-                                                        content: Text(
-                                                          'Unable to clear pokes: $error',
-                                                        ),
-                                                      ),
-                                                    );
+                                                    PopupNotif(
+                                                      message: 'Unable to clear pokes: $error',
+                                                      title: 'Error',
+                                                      type: NotifType.error,
+                                                    ).show(context);
                                                   }
                                                 },
                                           child: const Text('Clear'),

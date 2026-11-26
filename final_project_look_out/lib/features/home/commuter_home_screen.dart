@@ -206,7 +206,7 @@ class _CommuterHomeScreenState extends State<CommuterHomeScreen> {
       if (!mounted) return;
       if (position == null) {
         _showMessage(
-          'Enable location permission and services to show your location.',
+          'Enable location permission and services to show your location.', 'Warning', NotifType.info,
         );
         return;
       }
@@ -229,19 +229,17 @@ class _CommuterHomeScreenState extends State<CommuterHomeScreen> {
               }
             },
             onError: (Object error) {
-              _showMessage('Unable to update your location: $error');
+              _showMessage('Unable to update your location: $error', 'Error', NotifType.error,);
             },
           );
     } catch (error) {
-      _showMessage('Unable to get your location: $error');
+      _showMessage('Unable to get your location: $error', 'Error', NotifType.error);
     }
   }
 
-  void _showMessage(String message) {
+  void _showMessage(String message, String title, NotifType type) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(SnackBar(content: Text(message)));
+    PopupNotif(message: message, title: title, type: type).show(context);
   }
 
   Future<void> _centerOnCommuter() async {
@@ -250,14 +248,14 @@ class _CommuterHomeScreenState extends State<CommuterHomeScreen> {
       if (!mounted) return;
       if (position == null) {
         _showMessage(
-          'Enable location permission and services to find your location.',
+          'Enable location permission and services to find your location.,', 'Warning', NotifType.warning,
         );
         return;
       }
       setState(() => _commuterPosition = position);
       _mapController.move(position, 15.0);
     } catch (error) {
-      _showMessage('Unable to get your location: $error');
+      _showMessage('Unable to get your location: $error', 'Error', NotifType.error,);
     }
   }
 
@@ -266,7 +264,7 @@ class _CommuterHomeScreenState extends State<CommuterHomeScreen> {
     final position = await _getCommuterPosition();
     if (!mounted) return;
     if (position == null) {
-      _showMessage('Enable location permission and services to calculate ETA.');
+      _showMessage('Enable location permission and services to calculate ETA.', 'Warning', NotifType.warning,);
       return;
     }
     final eta = await _busTracking.calculateLocalEta(
@@ -315,6 +313,8 @@ class _CommuterHomeScreenState extends State<CommuterHomeScreen> {
       messageController.dispose();
       _showMessage(
         'Enable location permission and services before sending a poke.',
+        'Warning',
+        NotifType.warning,
       );
       return;
     }
@@ -348,12 +348,12 @@ class _CommuterHomeScreenState extends State<CommuterHomeScreen> {
                             );
                             if (!dialogContext.mounted) return;
                             Navigator.pop(dialogContext);
-                            _showMessage('Poke sent.');
+                            _showMessage('Poke sent.', 'Info', NotifType.info,);
                           } catch (error) {
                             if (dialogContext.mounted) {
                               setDialogState(() => isSending = false);
                             }
-                            _showMessage('Unable to send poke: $error');
+                            _showMessage('Unable to send poke: $error', 'Error', NotifType.error,);
                           }
                         },
                   child: isSending
@@ -640,7 +640,7 @@ class _CommuterHomeScreenState extends State<CommuterHomeScreen> {
                               '(${(corridor.confidence * 100).toStringAsFixed(0)}% AI confidence, '
                               'Rain: ${_predictor.currentRainMm} mm)',
                           type: NotifType.info,
-                        );
+                        ).show(context);
                       },
                     ),
                   ],
