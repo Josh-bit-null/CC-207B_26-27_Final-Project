@@ -120,11 +120,3 @@ class PopupNotif {
   }
 }
 
-void notify(
-  BuildContext context, {
-  required String message,
-  String? title,
-  NotifType type = NotifType.info,
-}) {
-  PopupNotif(message: message, title: title, type: type).show(context);
-}

@@ -47,11 +47,13 @@ val generateGoogleServicesJson by tasks.registering {
     }
 }
 
-tasks.withType<com.google.gms.googleservices.GoogleServicesTask>().configureEach {
-    googleServicesJsonFiles.set(
-        generatedGoogleServicesJson.map { listOf(it.asFile) },
-    )
-    dependsOn(generateGoogleServicesJson)
+afterEvaluate {
+    tasks.withType<com.google.gms.googleservices.GoogleServicesTask>().configureEach {
+        googleServicesJsonFiles.set(
+            generatedGoogleServicesJson.map { listOf(it.asFile) },
+        )
+        dependsOn(generateGoogleServicesJson)
+    }
 }
 
 dependencies {

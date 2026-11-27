@@ -247,7 +247,23 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
     return Scaffold(
       // App Bar
       appBar: selectedIndex == 0
-          ? const LookOutAppBar(title: 'Driver Dashboard')
+          ? LookOutAppBar(
+              title: 'Driver Dashboard',
+              actions: [
+                IconButton(
+                  tooltip: 'FAQs',
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const FaqsScreen(),
+                      ),
+                    );
+                  },
+                  icon: const Icon(Icons.help_outline),
+                ),
+              ],
+            )
           : null,
 
       key: _scaffoldKey,
