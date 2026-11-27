@@ -6,6 +6,54 @@ plugins {
     id("com.google.gms.google-services")
 }
 
+val firebaseEnvironmentFile = rootProject.file("../.env.json")
+val googleServicesTemplate = file("google-services.json.template")
+val generatedGoogleServicesJson =
+    layout.buildDirectory.file("generated/google-services/google-services.json")
+
+val generateGoogleServicesJson by tasks.registering {
+    inputs.file(googleServicesTemplate)
+    if (firebaseEnvironmentFile.exists()) {
+        inputs.file(firebaseEnvironmentFile)
+    }
+    inputs.property(
+        "firebaseApiKey",
+        providers.environmentVariable("FIREBASE_API_KEY").orElse(""),
+    )
+    outputs.file(generatedGoogleServicesJson)
+
+    doLast {
+        val environment = if (firebaseEnvironmentFile.exists()) {
+            groovy.json.JsonSlurper().parse(firebaseEnvironmentFile) as Map<*, *>
+        } else {
+            emptyMap<Any, Any>()
+        }
+        val apiKey = System.getenv("FIREBASE_API_KEY")
+            ?: environment["FIREBASE_API_KEY"] as? String
+            ?: throw GradleException(
+                "FIREBASE_API_KEY is missing from .env.json and the process environment.",
+            )
+        if (!apiKey.matches(Regex("[A-Za-z0-9_-]+"))) {
+            throw GradleException("FIREBASE_API_KEY contains unsupported characters.")
+        }
+
+        val template = googleServicesTemplate.readText()
+        if (!template.contains("__FIREBASE_API_KEY__")) {
+            throw GradleException("Firebase config template is missing its API key placeholder.")
+        }
+        val outputFile = generatedGoogleServicesJson.get().asFile
+        outputFile.parentFile.mkdirs()
+        outputFile.writeText(template.replace("__FIREBASE_API_KEY__", apiKey))
+    }
+}
+
+tasks.withType<com.google.gms.googleservices.GoogleServicesTask>().configureEach {
+    googleServicesJsonFiles.set(
+        generatedGoogleServicesJson.map { listOf(it.asFile) },
+    )
+    dependsOn(generateGoogleServicesJson)
+}
+
 dependencies {
   // Import the Firebase BoM
   implementation(platform("com.google.firebase:firebase-bom:35.2.0"))

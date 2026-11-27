@@ -645,17 +645,6 @@ class _CommuterHomeScreenState extends State<CommuterHomeScreen> {
                     ),
                   ],
 
-                  // 2. LPTRP Route Polyline
-                  PolylineLayer(
-                    polylines: [
-                      Polyline(
-                        points: _sampleRoutePoints,
-                        strokeWidth: 4.0,
-                        color: AppColor.primaryBlue,
-                      ),
-                    ],
-                  ),
-
                   // 3. Live PUV Markers
                   ValueListenableBuilder<List<ActiveBus>>(
                     valueListenable: _busTracking.activeBuses,
