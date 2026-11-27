@@ -1,4 +1,5 @@
 ﻿import 'package:flutter/material.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 //firebase
 import 'package:firebase_core/firebase_core.dart';
 
@@ -10,10 +11,12 @@ import './features/splash/splash_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  const firebaseApiKey = String.fromEnvironment('FIREBASE_API_KEY');
-  const appId = String.fromEnvironment('APP_ID');
-  const messagingId = String.fromEnvironment('MESSAGING_SENDER_ID');
-  const projectId = String.fromEnvironment('PROJECT_ID');
+  await dotenv.load(fileName: ".env");
+  final firebaseApiKey = dotenv.env['FIREBASE_API_KEY'] ?? '';
+  final appId = dotenv.env['APP_ID'] ?? '';
+  final messagingId = dotenv.env['MESSAGING_SENDER_ID'] ?? '';
+  final projectId = dotenv.env['PROJECT_ID'] ?? '';
+
   if (firebaseApiKey.isEmpty) {
     throw StateError(
       'FIREBASE_API_KEY is missing. Build or run with '
@@ -21,7 +24,7 @@ void main() async {
     );
   }
   await Firebase.initializeApp(
-    options: const FirebaseOptions(
+    options: FirebaseOptions(
       apiKey: firebaseApiKey,
       appId: appId,
       messagingSenderId: messagingId,

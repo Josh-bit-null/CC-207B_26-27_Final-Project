@@ -33,6 +33,7 @@ migrate_working_dir/
 /build/
 /.env.json
 /coverage/
+.env
 
 # Symbolication related
 app.*.symbols

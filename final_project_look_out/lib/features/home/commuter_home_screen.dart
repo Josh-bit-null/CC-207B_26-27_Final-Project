@@ -32,7 +32,6 @@ import '../../services/local_bus_tracking_service.dart';
 import '../../services/congestion_predictor_service.dart';
 
 //styling
-import '../../app/themes/app_colors.dart';
 import '../../services/firestore_poke_service.dart';
 
 class CommuterHomeScreen extends StatefulWidget {
@@ -65,13 +64,6 @@ class _CommuterHomeScreenState extends State<CommuterHomeScreen> {
 
   final CongestionPredictorService _predictor = CongestionPredictorService();
   List<CorridorPrediction> _predictions = [];
-
-  // Sample LPTRP route coordinates
-  final List<LatLng> _sampleRoutePoints = const [
-    LatLng(10.7253, 122.5568),
-    LatLng(10.7120, 122.5605),
-    LatLng(10.6969, 122.5644),
-  ];
 
   List<String> _routesFrom(List<ActiveBus> buses) {
     final routes = <String>{

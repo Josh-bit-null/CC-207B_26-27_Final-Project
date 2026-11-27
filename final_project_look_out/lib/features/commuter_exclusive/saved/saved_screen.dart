@@ -1,4 +1,3 @@
-import 'package:final_project_look_out/widgets/confirmation_dialog.dart';
 import 'package:final_project_look_out/widgets/loader.dart';
 import 'package:final_project_look_out/widgets/popup_notif.dart';
 

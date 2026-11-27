@@ -52,6 +52,7 @@ dependencies:
   flutter_launcher_icons: ^0.14.4
   socket_io_client: ^3.1.6
   audioplayers: ^6.8.1
+  flutter_dotenv: ^6.0.2
 
 dev_dependencies:
   flutter_test:
@@ -78,6 +79,7 @@ flutter:
     - assets/images/lookoutLogo.svg
     - assets/models/iloilo_traffic_weights.json
     - assets/audio/poke_audio.mp3
+    - .env
   # The following line ensures that the Material Icons font is
   # included with your application, so that you can use the icons in
   # the material Icons class.
